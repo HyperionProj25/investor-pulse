@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { DATABASE_ERRORS, VALIDATION_ERRORS } from "@/lib/errorMessages";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -24,7 +25,7 @@ export async function GET() {
     if (error) {
       console.error("Error fetching pitch deck state:", error);
       return NextResponse.json(
-        { error: "Failed to fetch pitch deck state" },
+        { error: DATABASE_ERRORS.PITCH_DECK_FETCH },
         { status: 500 }
       );
     }
@@ -33,7 +34,7 @@ export async function GET() {
   } catch (err) {
     console.error("Unexpected error:", err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: DATABASE_ERRORS.GENERIC },
       { status: 500 }
     );
   }
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
 
     if (!payload) {
       return NextResponse.json(
-        { error: "Payload is required" },
+        { error: VALIDATION_ERRORS.PAYLOAD_REQUIRED },
         { status: 400 }
       );
     }
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
     if (updateError) {
       console.error("Error updating pitch deck state:", updateError);
       return NextResponse.json(
-        { error: "Failed to update pitch deck state" },
+        { error: DATABASE_ERRORS.PITCH_DECK_SAVE_FAILED },
         { status: 500 }
       );
     }
@@ -102,7 +103,7 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error("Unexpected error:", err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: DATABASE_ERRORS.GENERIC },
       { status: 500 }
     );
   }

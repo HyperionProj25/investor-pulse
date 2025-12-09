@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState } from "react";
+import { VALIDATION_ERRORS, getUserFriendlyError } from "../lib/errorMessages";
 import type { QuestionnaireAnswers } from "../lib/questionnaire";
 
 type QuestionnaireControlProps = {
@@ -38,7 +39,7 @@ const QuestionnaireControl: React.FC<QuestionnaireControlProps> = ({
 
   const handleApply = () => {
     if (!inputValue.trim()) {
-      setStatusHelper("error", "Paste questionnaire JSON before applying.");
+      setStatusHelper("error", VALIDATION_ERRORS.QUESTIONNAIRE_PASTE_REQUIRED);
       return;
     }
     try {
@@ -46,9 +47,7 @@ const QuestionnaireControl: React.FC<QuestionnaireControlProps> = ({
     } catch (error) {
       setStatusHelper(
         "error",
-        `Could not parse JSON: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
+        getUserFriendlyError(error, VALIDATION_ERRORS.QUESTIONNAIRE_PARSE_FAILED)
       );
     }
   };
@@ -72,9 +71,7 @@ const QuestionnaireControl: React.FC<QuestionnaireControlProps> = ({
     } catch (error) {
       setStatusHelper(
         "error",
-        `Reset failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
+        getUserFriendlyError(error, VALIDATION_ERRORS.QUESTIONNAIRE_RESET_FAILED)
       );
     }
   };
@@ -87,7 +84,7 @@ const QuestionnaireControl: React.FC<QuestionnaireControlProps> = ({
     } catch {
       setStatusHelper(
         "error",
-        "Clipboard blocked. Use the Load Template button instead."
+        VALIDATION_ERRORS.QUESTIONNAIRE_CLIPBOARD_BLOCKED
       );
     }
   };
@@ -106,9 +103,7 @@ const QuestionnaireControl: React.FC<QuestionnaireControlProps> = ({
     } catch (error) {
       setStatusHelper(
         "error",
-        `Import failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
+        getUserFriendlyError(error, VALIDATION_ERRORS.QUESTIONNAIRE_IMPORT_FAILED)
       );
     } finally {
       event.target.value = "";

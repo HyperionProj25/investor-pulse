@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "react-hot-toast";
 import PersonalizedWelcome from "../../components/PersonalizedWelcome";
 import { ADMIN_PERSONAS, ADMIN_SLUGS } from "../../lib/adminUsers";
+import { AUTH_ERRORS, DATABASE_ERRORS, VALIDATION_ERRORS } from "../../lib/errorMessages";
 import {
   buildContentFromQuestionnaire,
   type QuestionnaireAnswers,
@@ -123,6 +125,35 @@ const AdminPage = () => {
   const [previewInvestorIndex, setPreviewInvestorIndex] = useState(0);
   const [openSections, setOpenSections] = useState(defaultOpenState);
   const [activeSection, setActiveSection] = useState<SectionKey>("hero");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  const clearFieldError = useCallback((key: string) => {
+    setFieldErrors((prev) => {
+      if (!prev[key]) {
+        return prev;
+      }
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }, []);
+
+  const getInputClasses = (key: string, extra = "") =>
+    [
+      "mt-1 w-full rounded-lg bg-[#090909] px-3 py-2 focus:outline-none focus:ring-0",
+      extra,
+      fieldErrors[key]
+        ? "border border-red-500 focus:border-red-400"
+        : "border border-[#2a2a2a] focus:border-[#cb6b1e]",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+  const renderFieldError = (key: string) =>
+    fieldErrors[key] ? (
+      <p className="mt-1 text-xs text-[#f87171]">{fieldErrors[key]}</p>
+    ) : null;
 
   const adminLabel = useMemo(() => {
     if (!authorizedAdmin) {
@@ -144,7 +175,7 @@ const AdminPage = () => {
     try {
       const response = await fetch("/api/site-state");
       if (!response.ok) {
-        throw new Error("Unable to fetch site state");
+        throw new Error(DATABASE_ERRORS.SITE_STATE_FETCH);
       }
       const data = await response.json();
       const shaped = buildContentFromQuestionnaire(data.payload);
@@ -192,25 +223,37 @@ const AdminPage = () => {
       setPreviewInvestorIndex(0);
       setError("");
       setActiveSection("hero");
+      setFieldErrors({});
     } catch (err) {
       console.error(err);
-      setError("Could not load the latest site state.");
+      setError(DATABASE_ERRORS.SITE_STATE_FETCH);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const storedAdmin =
-      typeof window !== "undefined"
-        ? window.localStorage.getItem("baseline-admin-user")
-        : null;
-    if (storedAdmin && ADMIN_SLUGS.includes(storedAdmin)) {
-      setAuthorizedAdmin(storedAdmin);
-      void loadCurrentState();
-    } else {
-      setLoading(false);
-    }
+    const verifyAdminSession = async () => {
+      try {
+        const response = await fetch("/api/auth/session");
+        if (!response.ok) {
+          setLoading(false);
+          return;
+        }
+        const data = await response.json();
+        if (data.role === "admin" && ADMIN_SLUGS.includes(data.slug)) {
+          setAuthorizedAdmin(data.slug);
+          await loadCurrentState();
+        } else {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("Failed to verify admin session", error);
+        setLoading(false);
+      }
+    };
+
+    verifyAdminSession();
   }, [loadCurrentState]);
 
   const createPayloadObject = useCallback((): QuestionnaireAnswers => ({
@@ -272,17 +315,207 @@ const AdminPage = () => {
       setPreviewInvestorIndex(Math.max(0, formState.investors.length - 1));
     }
   }, [formState.investors.length, previewInvestorIndex]);
+
+  const validateForm = useCallback(() => {
+    const errors: Record<string, string> = {};
+    const addError = (key: string, message: string) => {
+      if (!errors[key]) {
+        errors[key] = message;
+      }
+    };
+    const humanize = (value: string) =>
+      value
+        .replace(/([A-Z])/g, " $1")
+        .replace(/[-_]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/^\w/, (char) => char.toUpperCase());
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const pinPattern = /^\d{4}$/;
+    const hexPattern = /^#[0-9a-fA-F]{6}$/;
+
+    const requireText = (value: string, key: string, label: string) => {
+      if (!value || !value.trim()) {
+        addError(key, `${label} is required.`);
+        return;
+      }
+      if (key.toLowerCase().includes("email")) {
+        if (!emailPattern.test(value.trim())) {
+          addError(key, `${label} must be a valid email address.`);
+        }
+      }
+    };
+
+    const requireNonNegativeNumber = (value: string, key: string, label: string) => {
+      if (value === undefined || value === null || value.toString().trim() === "") {
+        addError(key, `${label} is required.`);
+        return;
+      }
+      const parsed = Number(value);
+      if (Number.isNaN(parsed)) {
+        addError(key, `${label} must be a number.`);
+      } else if (parsed < 0) {
+        addError(key, `${label} cannot be negative.`);
+      }
+    };
+
+    const requireDateValue = (value: string, key: string, label: string) => {
+      if (!value || !value.trim()) {
+        addError(key, `${label} is required.`);
+        return;
+      }
+      if (Number.isNaN(Date.parse(value))) {
+        addError(key, `${label} must be a valid date.`);
+      }
+    };
+
+    const requirePin = (value: string, key: string, label: string) => {
+      if (!value || !value.trim()) {
+        addError(key, `${label} is required.`);
+        return;
+      }
+      if (!pinPattern.test(value.trim())) {
+        addError(key, `${label} must be a 4-digit PIN.`);
+      }
+    };
+
+    const requireHexColor = (value: string, key: string, label: string) => {
+      if (!value || !value.trim()) {
+        addError(key, `${label} is required.`);
+        return;
+      }
+      if (!hexPattern.test(value.trim())) {
+        addError(key, `${label} must be a valid hex color (e.g., #123ABC).`);
+      }
+    };
+
+    Object.entries(formState.hero).forEach(([field, value]) => {
+      requireText(value, `hero.${field}`, `Hero ${humanize(field)}`);
+    });
+
+    Object.entries(formState.metadata).forEach(([field, value]) => {
+      if (field === "lastUpdated" || field === "launchTarget") {
+        requireDateValue(value, `metadata.${field}`, `Metadata ${humanize(field)}`);
+      } else {
+        requireText(value, `metadata.${field}`, `Metadata ${humanize(field)}`);
+      }
+    });
+
+    requireText(
+      formState.funding.roundType,
+      "funding.roundType",
+      "Funding round type"
+    );
+    requireNonNegativeNumber(
+      formState.funding.target,
+      "funding.target",
+      "Funding target"
+    );
+    requireNonNegativeNumber(
+      formState.funding.committed,
+      "funding.committed",
+      "Funding committed"
+    );
+    requireText(formState.funding.minCheck, "funding.minCheck", "Funding min check");
+    requireDateValue(
+      formState.funding.closeDate,
+      "funding.closeDate",
+      "Funding close date"
+    );
+    requireText(
+      formState.funding.useOfFunds,
+      "funding.useOfFunds",
+      "Funding use of funds"
+    );
+
+    requireText(
+      formState.tractionNarrative,
+      "tractionNarrative",
+      "Traction narrative"
+    );
+
+    formState.snapshots.forEach((snapshot, index) => {
+      const prefix = `Snapshot ${index + 1}`;
+      const baseKey = `snapshots.${index}`;
+      requireText(snapshot.label, `${baseKey}.label`, `${prefix} label`);
+      requireDateValue(snapshot.asOf, `${baseKey}.asOf`, `${prefix} as-of date`);
+      ["facilities", "teams", "players", "events", "dataPoints"].forEach((metric) => {
+        requireNonNegativeNumber(
+          snapshot[metric as keyof EditableSnapshot] as string,
+          `${baseKey}.${metric}`,
+          `${prefix} ${humanize(metric)}`
+        );
+      });
+      requireText(
+        snapshot.highlightsText,
+        `${baseKey}.highlightsText`,
+        `${prefix} highlights`
+      );
+    });
+
+    formState.investors.forEach((investor, index) => {
+      const prefix = `Investor ${index + 1}`;
+      const baseKey = `investors.${index}`;
+      ["slug", "name", "firm", "title"].forEach((field) => {
+        requireText(
+          investor[field as keyof EditableInvestor],
+          `${baseKey}.${field}`,
+          `${prefix} ${humanize(field)}`
+        );
+      });
+      requirePin(investor.pin, `${baseKey}.pin`, `${prefix} PIN`);
+      ["pixelAccent", "pixelMuted"].forEach((hexField) => {
+        requireHexColor(
+          investor[hexField as keyof EditableInvestor],
+          `${baseKey}.${hexField}`,
+          `${prefix} ${humanize(hexField)}`
+        );
+      });
+      ["focusArea", "welcomeNote", "highlight", "nextStep"].forEach((field) => {
+        requireText(
+          investor[field as keyof EditableInvestor],
+          `${baseKey}.${field}`,
+          `${prefix} ${humanize(field)}`
+        );
+      });
+      requireText(
+        investor.keyQuestionsText,
+        `${baseKey}.keyQuestionsText`,
+        `${prefix} key questions`
+      );
+    });
+
+    formState.prompts.forEach((prompt, index) => {
+      const prefix = `Prompt ${index + 1}`;
+      const baseKey = `prompts.${index}`;
+      requireText(prompt.category, `${baseKey}.category`, `${prefix} category`);
+      requireText(prompt.question, `${baseKey}.question`, `${prefix} question`);
+      requireText(prompt.helper, `${baseKey}.helper`, `${prefix} helper text`);
+    });
+
+    return errors;
+  }, [formState]);
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setStatus("");
     setError("");
 
     if (!authorizedAdmin) {
-      setError("Log in as Chase or Sheldon to publish updates.");
+    setError(AUTH_ERRORS.ADMIN_ACCESS_REQUIRED);
+    toast.error(AUTH_ERRORS.ADMIN_ACCESS_REQUIRED);
+      return;
+    }
+
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      setError(VALIDATION_ERRORS.PUBLISH_FIELDS_INCOMPLETE);
+      toast.error(VALIDATION_ERRORS.PUBLISH_FIELDS_INCOMPLETE);
       return;
     }
 
     try {
+      setIsPublishing(true);
       const payload = createPayloadObject();
       const response = await fetch("/api/admin/update", {
         method: "POST",
@@ -295,13 +528,18 @@ const AdminPage = () => {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to save update.");
+        throw new Error(DATABASE_ERRORS.ADMIN_PUBLISH_FAILED);
       }
 
+      setFieldErrors({});
       setStatus("Update published successfully.");
+      toast.success("Update published successfully.");
     } catch (err) {
       console.error(err);
-      setError("Publishing failed. Fix validation issues and try again.");
+      setError(DATABASE_ERRORS.ADMIN_PUBLISH_FAILED);
+      toast.error(DATABASE_ERRORS.ADMIN_PUBLISH_FAILED);
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -447,8 +685,14 @@ const AdminPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#050505] text-[#f6e1bd] flex items-center justify-center">
-        <p className="text-sm text-[#a3a3a3]">Loading admin workspaceâ€¦</p>
+      <div
+        className="min-h-screen bg-[#050505] text-[#f6e1bd] flex items-center justify-center"
+        role="status"
+        aria-live="polite"
+      >
+        <p className="text-sm text-[#d4d4d4]">
+          Loading admin workspace...
+        </p>
       </div>
     );
   }
@@ -456,9 +700,13 @@ const AdminPage = () => {
   if (!authorizedAdmin) {
     return (
       <div className="min-h-screen bg-[#050505] text-[#f6e1bd] flex items-center justify-center px-4">
-        <div className="max-w-md space-y-4 rounded-2xl border border-[#1d1d1d] bg-[#0b0b0b] p-6 text-center">
+        <div
+          className="max-w-md space-y-4 rounded-2xl border border-[#1d1d1d] bg-[#0b0b0b] p-6 text-center"
+          role="alert"
+          aria-live="assertive"
+        >
           <h1 className="text-xl font-semibold">Admin access required</h1>
-          <p className="text-sm text-[#aaaaaa]">
+          <p className="text-sm text-[#d4d4d4]">
             Log in as Chase or Sheldon on the investor page to unlock this workspace.
           </p>
           <Link
@@ -520,28 +768,46 @@ const AdminPage = () => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-8 space-y-8 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-6">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto max-w-6xl px-4 py-8 space-y-8 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-6"
+      >
         <form className="space-y-6" onSubmit={handleSubmit}>
           {status && (
-            <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+            <div
+              className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200"
+              role="status"
+              aria-live="polite"
+            >
               {status}
             </div>
           )}
           {error && (
-            <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            <div
+              className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200"
+              role="alert"
+              aria-live="assertive"
+            >
               {error}
             </div>
           )}
+          <fieldset disabled={isPublishing} className="space-y-6">
 
           <SectionCard section="hero" title="Hero" subtitle="Controls the headline and intro copy">
             {Object.entries(formState.hero).map(([field, value]) => (
               <label key={field} className="text-xs uppercase tracking-[0.18em] text-[#a3a3a3]">
                 {field}
                 <input
-                  className="mt-1 w-full rounded-lg border border-[#2a2a2a] bg-[#090909] px-3 py-2"
+                  className={getInputClasses(`hero.${field}`)}
+                  aria-invalid={Boolean(fieldErrors[`hero.${field}`])}
                   value={value}
-                  onChange={(event) => setHeroField(field as keyof HeroState, event.target.value)}
+                  onChange={(event) => {
+                    clearFieldError(`hero.${field}`);
+                    setHeroField(field as keyof HeroState, event.target.value);
+                  }}
                 />
+                {renderFieldError(`hero.${field}`)}
               </label>
             ))}
           </SectionCard>
@@ -552,10 +818,15 @@ const AdminPage = () => {
                 <label key={field} className="text-xs uppercase tracking-[0.18em] text-[#a3a3a3]">
                   {field}
                   <input
-                    className="mt-1 w-full rounded-lg border border-[#2a2a2a] bg-[#090909] px-3 py-2"
+                    className={getInputClasses(`metadata.${field}`)}
+                    aria-invalid={Boolean(fieldErrors[`metadata.${field}`])}
                     value={value}
-                    onChange={(event) => setMetadataField(field as keyof MetadataState, event.target.value)}
+                    onChange={(event) => {
+                      clearFieldError(`metadata.${field}`);
+                      setMetadataField(field as keyof MetadataState, event.target.value);
+                    }}
                   />
+                  {renderFieldError(`metadata.${field}`)}
                 </label>
               ))}
             </div>
@@ -567,10 +838,15 @@ const AdminPage = () => {
                 <label key={field} className="text-xs uppercase tracking-[0.18em] text-[#a3a3a3]">
                   {field}
                   <input
-                    className="mt-1 w-full rounded-lg border border-[#2a2a2a] bg-[#090909] px-3 py-2"
+                    className={getInputClasses(`funding.${field}`)}
+                    aria-invalid={Boolean(fieldErrors[`funding.${field}`])}
                     value={value}
-                    onChange={(event) => setFundingField(field as keyof FundingState, event.target.value)}
+                    onChange={(event) => {
+                      clearFieldError(`funding.${field}`);
+                      setFundingField(field as keyof FundingState, event.target.value);
+                    }}
                   />
+                  {renderFieldError(`funding.${field}`)}
                 </label>
               ))}
             </div>
@@ -578,13 +854,19 @@ const AdminPage = () => {
 
           <SectionCard section="traction" title="Traction narrative" subtitle="Shown under Traction overview">
             <textarea
-              className="w-full rounded-lg border border-[#2a2a2a] bg-[#090909] px-3 py-2"
+              className={getInputClasses("tractionNarrative")}
               rows={4}
               value={formState.tractionNarrative}
-              onChange={(event) =>
-                setFormState((prev) => ({ ...prev, tractionNarrative: event.target.value }))
-              }
+              aria-invalid={Boolean(fieldErrors.tractionNarrative)}
+              onChange={(event) => {
+                clearFieldError("tractionNarrative");
+                setFormState((prev) => ({
+                  ...prev,
+                  tractionNarrative: event.target.value,
+                }));
+              }}
             />
+            {renderFieldError("tractionNarrative")}
           </SectionCard>
 
           <SectionCard
@@ -629,25 +911,33 @@ const AdminPage = () => {
                     <label key={field} className="text-xs uppercase tracking-[0.18em] text-[#a3a3a3]">
                       {field}
                       <input
-                        className="mt-1 w-full rounded-lg border border-[#2a2a2a] bg-[#090909] px-3 py-2"
+                        className={getInputClasses(`snapshots.${index}.${field}`)}
+                        aria-invalid={Boolean(fieldErrors[`snapshots.${index}.${field}`])}
                         value={snapshot[field as SnapshotField]}
                         onChange={(event) =>
-                          updateSnapshot(index, field as SnapshotField, event.target.value)
+                          {
+                            clearFieldError(`snapshots.${index}.${field}`);
+                            updateSnapshot(index, field as SnapshotField, event.target.value);
+                          }
                         }
                       />
+                      {renderFieldError(`snapshots.${index}.${field}`)}
                     </label>
                   ))}
                 </div>
                 <label className="text-xs uppercase tracking-[0.18em] text-[#a3a3a3]">
                   Highlights (one per line)
                   <textarea
-                    className="mt-1 w-full rounded-lg border border-[#2a2a2a] bg-[#090909] px-3 py-2 text-xs"
+                    className={getInputClasses(`snapshots.${index}.highlightsText`, "text-xs")}
                     rows={3}
                     value={snapshot.highlightsText}
-                    onChange={(event) =>
-                      updateSnapshot(index, "highlightsText", event.target.value)
-                    }
+                    aria-invalid={Boolean(fieldErrors[`snapshots.${index}.highlightsText`])}
+                    onChange={(event) => {
+                      clearFieldError(`snapshots.${index}.highlightsText`);
+                      updateSnapshot(index, "highlightsText", event.target.value);
+                    }}
                   />
+                  {renderFieldError(`snapshots.${index}.highlightsText`)}
                 </label>
               </div>
             ))}
@@ -697,12 +987,15 @@ const AdminPage = () => {
                     <label key={field} className="text-xs uppercase tracking-[0.18em] text-[#a3a3a3]">
                       {field}
                       <input
-                        className="mt-1 w-full rounded-lg border border-[#2a2a2a] bg-[#090909] px-3 py-2"
+                        className={getInputClasses(`investors.${index}.${field}`)}
+                        aria-invalid={Boolean(fieldErrors[`investors.${index}.${field}`])}
                         value={investor[field as InvestorField]}
-                        onChange={(event) =>
-                          updateInvestor(index, field as InvestorField, event.target.value)
-                        }
+                        onChange={(event) => {
+                          clearFieldError(`investors.${index}.${field}`);
+                          updateInvestor(index, field as InvestorField, event.target.value);
+                        }}
                       />
+                      {renderFieldError(`investors.${index}.${field}`)}
                     </label>
                   ))}
                 </div>
@@ -715,25 +1008,31 @@ const AdminPage = () => {
                   <label key={field} className="text-xs uppercase tracking-[0.18em] text-[#a3a3a3]">
                     {label}
                     <textarea
-                      className="mt-1 w-full rounded-lg border border-[#2a2a2a] bg-[#090909] px-3 py-2"
+                      className={getInputClasses(`investors.${index}.${field}`)}
                       rows={field === "highlight" ? 2 : 3}
                       value={investor[field as InvestorField]}
-                      onChange={(event) =>
-                        updateInvestor(index, field as InvestorField, event.target.value)
-                      }
+                      aria-invalid={Boolean(fieldErrors[`investors.${index}.${field}`])}
+                      onChange={(event) => {
+                        clearFieldError(`investors.${index}.${field}`);
+                        updateInvestor(index, field as InvestorField, event.target.value);
+                      }}
                     />
+                    {renderFieldError(`investors.${index}.${field}`)}
                   </label>
                 ))}
                 <label className="text-xs uppercase tracking-[0.18em] text-[#a3a3a3]">
                   Key questions (one per line)
                   <textarea
-                    className="mt-1 w-full rounded-lg border border-[#2a2a2a] bg-[#090909] px-3 py-2 text-xs"
+                    className={getInputClasses(`investors.${index}.keyQuestionsText`, "text-xs")}
                     rows={4}
                     value={investor.keyQuestionsText}
-                    onChange={(event) =>
-                      updateInvestor(index, "keyQuestionsText", event.target.value)
-                    }
+                    aria-invalid={Boolean(fieldErrors[`investors.${index}.keyQuestionsText`])}
+                    onChange={(event) => {
+                      clearFieldError(`investors.${index}.keyQuestionsText`);
+                      updateInvestor(index, "keyQuestionsText", event.target.value);
+                    }}
                   />
+                  {renderFieldError(`investors.${index}.keyQuestionsText`)}
                 </label>
               </div>
             ))}
@@ -776,12 +1075,15 @@ const AdminPage = () => {
                   <label key={field} className="text-xs uppercase tracking-[0.18em] text-[#a3a3a3]">
                     {label}
                     <input
-                      className="mt-1 w-full rounded-lg border border-[#2a2a2a] bg-[#090909] px-3 py-2"
+                      className={getInputClasses(`prompts.${index}.${field}`)}
+                      aria-invalid={Boolean(fieldErrors[`prompts.${index}.${field}`])}
                       value={prompt[field as keyof QuestionnairePrompt] as string}
-                      onChange={(event) =>
-                          updatePrompt(index, field as keyof QuestionnairePrompt, event.target.value)
-                      }
+                      onChange={(event) => {
+                        clearFieldError(`prompts.${index}.${field}`);
+                        updatePrompt(index, field as keyof QuestionnairePrompt, event.target.value);
+                      }}
                     />
+                    {renderFieldError(`prompts.${index}.${field}`)}
                   </label>
                 ))}
               </div>
@@ -803,13 +1105,22 @@ const AdminPage = () => {
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="submit"
-              className="rounded-lg bg-[#cb6b1e] px-4 py-2 text-sm font-semibold text-black hover:bg-[#e37a2e]"
+              disabled={isPublishing}
+              className="rounded-lg bg-[#cb6b1e] px-4 py-2 text-sm font-semibold text-black hover:bg-[#e37a2e] disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Publish update
+              {isPublishing ? (
+                <span className="flex items-center gap-2">
+                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-black border-t-transparent" />
+                  Publishing...
+                </span>
+              ) : (
+                "Publish update"
+              )}
             </button>
             <button
               type="button"
-              className="text-xs text-[#a3a3a3] underline-offset-4 hover:underline"
+              disabled={isPublishing}
+              className="text-xs text-[#a3a3a3] underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-70"
               onClick={loadCurrentState}
             >
               Reload live data
@@ -821,6 +1132,7 @@ const AdminPage = () => {
               Back to investor dashboard
             </Link>
           </div>
+          </fieldset>
         </form>
 
         <aside className="space-y-4 rounded-2xl border border-[#1f1f1f] bg-[#0b0b0b] p-4 lg:sticky lg:top-6 lg:h-fit">

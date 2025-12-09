@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { DATABASE_ERRORS } from "../../../lib/errorMessages";
 import { getServiceSupabaseClient } from "../../../lib/supabaseClient";
 
 export async function GET() {
@@ -24,7 +25,7 @@ export async function GET() {
   } catch (error) {
     console.error("Site state fetch failed", error);
     return NextResponse.json(
-      { error: "Unable to load site state" },
+      { error: DATABASE_ERRORS.SITE_STATE_FETCH },
       { status: 500 }
     );
   }

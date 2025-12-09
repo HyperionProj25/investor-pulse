@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useId, type ReactNode } from "react";
 import { PitchDeckContent, PitchDeckSlide, sortSlides, moveSlide, generateSlideId } from "@/lib/pitchDeck";
-import { BASELINE_UPDATE } from "@/lib/questionnaire";
 import { ADMIN_PERSONAS } from "@/lib/adminUsers";
+import { AUTH_ERRORS, DATABASE_ERRORS, FILE_UPLOAD_ERRORS, NETWORK_ERRORS, getUserFriendlyError } from "@/lib/errorMessages";
 import BaselineLogo from "@/components/BaselineLogo";
 import { formatPitchDeckText } from "@/lib/formatPitchDeckText";
+import { toast } from "react-hot-toast";
 
 type FormattingHelperProps = {
   compact?: boolean;
@@ -81,11 +82,59 @@ const combineCountdownInputs = (dateValue: string, timeValue: string) => {
   return local.toISOString();
 };
 
+const DeckBackground = ({ children }: { children: ReactNode }) => (
+  <div className="min-h-screen bg-[#0A0A0A] relative overflow-hidden">
+    <div className="fixed inset-0 pointer-events-none">
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#cb6b1e]/5 rounded-full blur-3xl animate-pulse" />
+      <div
+        className="absolute bottom-0 right-1/4 w-96 h-96 bg-[#cb6b1e]/5 rounded-full blur-3xl animate-pulse"
+        style={{ animationDelay: "1s" }}
+      />
+      <div
+        className="absolute inset-0 opacity-[0.02]"
+        style={{
+          backgroundImage:
+            "linear-gradient(#cb6b1e 1px, transparent 1px), linear-gradient(90deg, #cb6b1e 1px, transparent 1px)",
+          backgroundSize: "50px 50px",
+        }}
+      />
+    </div>
+    <div className="relative">{children}</div>
+  </div>
+);
+
+const DeckSkeleton = () => (
+  <div
+    className="max-w-5xl mx-auto px-6 py-12 space-y-10"
+    role="status"
+    aria-live="polite"
+    aria-label="Loading pitch deck content"
+  >
+    <div className="space-y-4 text-center">
+      <div className="mx-auto h-20 w-20 rounded-2xl bg-white/10 animate-pulse" />
+      <div className="mx-auto h-6 w-48 rounded-full bg-white/10 animate-pulse" />
+      <div className="mx-auto h-4 w-64 rounded-full bg-white/10 animate-pulse" />
+    </div>
+    <div className="grid gap-6 md:grid-cols-2">
+      {[0, 1, 2, 3].map((key) => (
+        <div key={key} className="h-48 rounded-3xl border border-white/10 bg-white/5 animate-pulse" />
+      ))}
+    </div>
+    <div className="space-y-4">
+      {[0, 1].map((key) => (
+        <div key={key} className="h-56 rounded-3xl border border-white/10 bg-white/5 animate-pulse" />
+      ))}
+    </div>
+  </div>
+);
+
 export default function PitchDeckPage() {
   const [authenticated, setAuthenticated] = useState(false);
+  const [sessionLoading, setSessionLoading] = useState(true);
   const [pin, setPin] = useState("");
   const [content, setContent] = useState<PitchDeckContent | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [contentLoading, setContentLoading] = useState(false);
+  const [contentError, setContentError] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [adminPin, setAdminPin] = useState("");
   const [showAdminAuth, setShowAdminAuth] = useState(false);
@@ -95,32 +144,61 @@ export default function PitchDeckPage() {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
   const [previewMode, setPreviewMode] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<{ [key: string]: boolean }>({});
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [countdownAnnouncement, setCountdownAnnouncement] = useState("");
+  const [contentLiveMessage, setContentLiveMessage] = useState("");
+  const adminButtonRef = useRef<HTMLButtonElement | null>(null);
+  const adminPinInputRef = useRef<HTMLInputElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const deckLoginInputId = useId();
+  const deckLoginErrorId = useId();
+  const adminModalTitleId = useId();
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [adminAuthError, setAdminAuthError] = useState<string | null>(null);
 
-  // Find the PRE PITCH DECK investor
-  const pitchDeckInvestor = BASELINE_UPDATE.investors.find(
-    (inv) => inv.slug === "pre-pitch-deck"
-  );
-
-  // Load pitch deck data on mount
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const res = await fetch("/api/pitch-deck");
-        const data = await res.json();
-        if (data.payload) {
-          setContent(data.payload);
-          setFormState(data.payload);
-        }
-      } catch (error) {
-        console.error("Error loading pitch deck:", error);
-      } finally {
-        setLoading(false);
+  const loadDeckContent = useCallback(async () => {
+    setContentLoading(true);
+    setContentError(null);
+    try {
+      const res = await fetch("/api/pitch-deck");
+      if (!res.ok) {
+        throw new Error(DATABASE_ERRORS.PITCH_DECK_FETCH);
       }
-    };
-
-    loadData();
+      const data = await res.json();
+      if (data.payload) {
+        setContent(data.payload);
+        setFormState(data.payload);
+      } else {
+        setContent(null);
+        setFormState(null);
+      }
+    } catch (error) {
+      console.error(DATABASE_ERRORS.PITCH_DECK_FETCH, error);
+      setContentError(DATABASE_ERRORS.PITCH_DECK_FETCH);
+      toast.error(DATABASE_ERRORS.PITCH_DECK_FETCH);
+    } finally {
+      setContentLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    if (!authenticated) {
+      setContent(null);
+      setFormState(null);
+      return;
+    }
+    void loadDeckContent();
+  }, [authenticated, loadDeckContent]);
+
+  useEffect(() => {
+    if (contentLoading) {
+      setContentLiveMessage("Loading pitch deck content.");
+    } else if (contentError) {
+      setContentLiveMessage("Pitch deck content failed to load.");
+    } else {
+      setContentLiveMessage("");
+    }
+  }, [contentLoading, contentError]);
 
   // Countdown timer
   useEffect(() => {
@@ -154,25 +232,72 @@ export default function PitchDeckPage() {
     return () => clearInterval(interval);
   }, [content]);
 
-  // Handle authentication
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (pitchDeckInvestor && pin === pitchDeckInvestor.pin) {
-      setAuthenticated(true);
-      localStorage.setItem("pitch-deck-authenticated", "true");
-    } else {
-      alert("Invalid PIN");
-      setPin("");
-    }
-  };
-
-  // Check for existing auth
   useEffect(() => {
-    const stored = localStorage.getItem("pitch-deck-authenticated");
-    if (stored === "true") {
+    const message = `Pitch deck countdown: ${countdown.days} days, ${countdown.hours} hours, ${countdown.minutes} minutes, and ${countdown.seconds} seconds remaining.`;
+    setCountdownAnnouncement(message);
+  }, [countdown]);
+
+  // Handle authentication
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError(null);
+    try {
+      const response = await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role: "deck",
+          pin: pin.trim(),
+        }),
+      });
+    const data = await response.json();
+    if (!response.ok) {
+      const message = getUserFriendlyError(data?.error, AUTH_ERRORS.DECK_PIN_INVALID);
+      setLoginError(message);
+      toast.error(message);
+      setPin("");
+      return;
+    }
       setAuthenticated(true);
+      setSessionError(null);
+      setPin("");
+      toast.success("Pitch deck unlocked.");
+  } catch (error) {
+    console.error("Deck login failed:", error);
+    setLoginError(NETWORK_ERRORS.PIN_VERIFICATION_FAILED);
+    toast.error(NETWORK_ERRORS.PIN_VERIFICATION_FAILED);
+  }
+};
+
+  const verifySession = useCallback(async () => {
+    setSessionLoading(true);
+    setSessionError(null);
+    try {
+    const response = await fetch("/api/auth/session");
+    if (!response.ok) {
+      setAuthenticated(false);
+      setSessionError(AUTH_ERRORS.SESSION_EXPIRED);
+      return;
+    }
+      const data = await response.json();
+      if (data.role === "deck" || data.role === "admin") {
+        setAuthenticated(true);
+      } else {
+      setAuthenticated(false);
+      setSessionError(AUTH_ERRORS.SESSION_REQUIRED);
+    }
+  } catch (error) {
+    console.error("Failed to verify deck session:", error);
+    setAuthenticated(false);
+    setSessionError(NETWORK_ERRORS.SESSION_VERIFICATION_FAILED);
+  } finally {
+      setSessionLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    void verifySession();
+  }, [verifySession]);
 
   // Keyboard navigation for carousel
   useEffect(() => {
@@ -194,9 +319,30 @@ export default function PitchDeckPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [content, authenticated]);
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowAdminAuth(false);
+      }
+    };
+    if (showAdminAuth) {
+      previousFocusRef.current = document.activeElement as HTMLElement | null;
+      setTimeout(() => adminPinInputRef.current?.focus(), 0);
+      document.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+    if (previousFocusRef.current) {
+      previousFocusRef.current.focus?.();
+      previousFocusRef.current = null;
+    }
+  }, [showAdminAuth]);
+
   // Handle admin authentication
   const handleAdminAuth = (e: React.FormEvent) => {
     e.preventDefault();
+    setAdminAuthError(null);
 
     const adminUser = ADMIN_PERSONAS.find(
       (admin) => admin.pin === adminPin
@@ -206,8 +352,10 @@ export default function PitchDeckPage() {
       setEditMode(true);
       setShowAdminAuth(false);
       setAdminPin("");
+      toast.success(`Admin mode unlocked for ${adminUser.shortLabel}`);
     } else {
-      alert("Invalid admin PIN");
+      setAdminAuthError(AUTH_ERRORS.ADMIN_PIN_INVALID);
+      toast.error(AUTH_ERRORS.ADMIN_PIN_INVALID);
       setAdminPin("");
     }
   };
@@ -232,13 +380,47 @@ export default function PitchDeckPage() {
       if (res.ok) {
         setContent(formState);
         setSaveStatus("success");
+        toast.success("Pitch deck updated.");
         setTimeout(() => setSaveStatus("idle"), 2000);
       } else {
+        const errorData = await res.json().catch(() => null);
         setSaveStatus("error");
+        const message = getUserFriendlyError(
+          errorData?.error,
+          DATABASE_ERRORS.PITCH_DECK_SAVE_FAILED
+        );
+        toast.error(message);
       }
     } catch (error) {
       console.error("Error saving:", error);
       setSaveStatus("error");
+      toast.error(DATABASE_ERRORS.PITCH_DECK_SAVE_FAILED);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("/api/auth/session", { method: "DELETE" });
+      if (!response.ok) {
+        throw new Error(NETWORK_ERRORS.SESSION_END_FAILED);
+      }
+      toast.success("Signed out.");
+    } catch (error) {
+      console.error("Failed to log out:", error);
+      toast.error(NETWORK_ERRORS.SESSION_END_FAILED);
+    } finally {
+      setAuthenticated(false);
+      setEditMode(false);
+      setPreviewMode(false);
+      setShowAdminAuth(false);
+      setAdminPin("");
+      setPin("");
+      setContent(null);
+      setFormState(null);
+      setContentError(null);
+      setLoginError(null);
+      setAdminAuthError(null);
+      setSessionError(null);
     }
   };
 
@@ -312,8 +494,12 @@ export default function PitchDeckPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        alert(`Upload failed: ${errorData.error || "Unknown error"}`);
+        const errorData = await response.json().catch(() => null);
+        const uploadMessage = getUserFriendlyError(
+          errorData?.error,
+          FILE_UPLOAD_ERRORS.UPLOAD_FAILED
+        );
+        toast.error(uploadMessage);
         return;
       }
 
@@ -331,86 +517,188 @@ export default function PitchDeckPage() {
           videoSource: "upload",
         });
       }
-    } catch (error) {
-      console.error("Upload error:", error);
-      alert("Failed to upload file. Please try again.");
+      toast.success(`${file.name} uploaded.`);
+  } catch (error) {
+    console.error("Upload error:", error);
+    toast.error(FILE_UPLOAD_ERRORS.UPLOAD_FAILED);
     } finally {
       setUploadingFiles((prev) => ({ ...prev, [slideId]: false }));
     }
   };
 
-  if (loading) {
+  if (sessionLoading) {
     return (
-      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
-        <div className="text-[#f6e1bd]">Loading...</div>
-      </div>
+      <DeckBackground>
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="min-h-screen flex items-center justify-center px-4"
+        >
+          <div className="text-[#f6e1bd] text-sm" role="status" aria-live="polite">
+            Verifying access...
+          </div>
+        </main>
+      </DeckBackground>
     );
   }
 
   if (!authenticated) {
     return (
-      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center px-4">
-        <div className="w-full max-w-md">
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
-            <div className="text-center mb-8">
-              <div className="mx-auto mb-4 w-16 h-16">
-                <BaselineLogo size="w-16 h-16" />
-              </div>
-              <h1 className="text-3xl font-bold text-[#f6e1bd] mb-2">Baseline Analytics</h1>
-              <p className="text-[#f6e1bd]">Pitch Deck Access</p>
-            </div>
-
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-[#f6e1bd] mb-2">
-                  Access PIN
-                </label>
-                <input
-                  type="password"
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-[#f6e1bd] focus:outline-none focus:border-[#cb6b1e] transition-colors"
-                  placeholder="Enter 4-digit PIN"
-                  maxLength={4}
-                  autoFocus
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-[#cb6b1e] hover:bg-[#e37a2e] text-white font-semibold py-3 rounded-lg transition-colors"
+      <DeckBackground>
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="min-h-screen flex items-center justify-center px-4"
+        >
+          <div className="w-full max-w-md space-y-4">
+            {sessionError && (
+              <div
+                className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-100"
+                role="alert"
+                aria-live="assertive"
               >
-                Access Deck
-              </button>
-            </form>
+                {sessionError}
+              </div>
+            )}
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
+              <div className="text-center mb-8">
+                <div className="mx-auto mb-4 w-16 h-16">
+                  <BaselineLogo size="w-16 h-16" />
+                </div>
+                <h1 className="text-3xl font-bold text-[#f6e1bd] mb-2">Baseline Analytics</h1>
+                <p className="text-[#f6e1bd]">Pitch Deck Access</p>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <label
+                    htmlFor={deckLoginInputId}
+                    className="block text-sm font-medium text-[#f6e1bd] mb-2"
+                  >
+                    Access PIN
+                  </label>
+                  <input
+                    id={deckLoginInputId}
+                    type="password"
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value)}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-[#f6e1bd] focus:outline-none focus:border-[#cb6b1e] transition-colors"
+                    placeholder="Enter 4-digit PIN"
+                    maxLength={4}
+                    autoFocus
+                    aria-invalid={Boolean(loginError)}
+                    aria-describedby={loginError ? deckLoginErrorId : undefined}
+                  />
+                  {loginError && (
+                    <p
+                      id={deckLoginErrorId}
+                      className="mt-2 text-xs text-red-300"
+                      role="alert"
+                      aria-live="assertive"
+                    >
+                      {loginError}
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-[#cb6b1e] hover:bg-[#e37a2e] text-white font-semibold py-3 rounded-lg transition-colors"
+                >
+                  Access Deck
+                </button>
+              </form>
+            </div>
           </div>
-        </div>
-      </div>
+        </main>
+      </DeckBackground>
     );
   }
+
+
+  if (contentLoading && !content && !contentError) {
+    return (
+      <DeckBackground>
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="min-h-screen flex items-center justify-center px-4"
+        >
+          <DeckSkeleton />
+        </main>
+      </DeckBackground>
+    );
+  }
+
+  if (contentError && !content) {
+    return (
+      <DeckBackground>
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="min-h-screen flex items-center justify-center px-4"
+        >
+          <div
+            className="w-full max-w-md space-y-4 rounded-2xl border border-white/10 bg-white/5 p-6 text-center"
+            role="alert"
+            aria-live="assertive"
+          >
+            <p className="text-[#f6e1bd]">{contentError}</p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+              <button
+                onClick={() => void loadDeckContent()}
+                className="rounded-lg border border-white/40 px-4 py-2 text-sm text-[#f6e1bd] hover:bg-white/10"
+              >
+                Retry
+              </button>
+              <button
+                onClick={handleLogout}
+                className="rounded-lg bg-[#cb6b1e] px-4 py-2 text-sm font-semibold text-black hover:bg-[#e37a2e]"
+              >
+                Log out
+              </button>
+            </div>
+          </div>
+        </main>
+      </DeckBackground>
+    );
+  }
+
 
   if (!content) {
     return (
-      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-[#f6e1bd] mb-4">No pitch deck content available</div>
-          <div className="text-[#a3a3a3] text-sm mb-6">
-            Database tables may not be set up yet. Check PITCH_DECK_SETUP.md for instructions.
+      <DeckBackground>
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="min-h-screen flex items-center justify-center px-4"
+        >
+          <div className="text-center space-y-4 rounded-2xl border border-white/10 bg-white/5 p-6 max-w-md w-full">
+            <div className="text-[#f6e1bd]">No pitch deck content available.</div>
+            <p className="text-sm text-[#d4d4d4]">
+              Database tables may not be set up yet. Check PITCH_DECK_SETUP.md for instructions.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+              <button
+                onClick={() => void loadDeckContent()}
+                className="rounded-lg border border-white/30 px-4 py-2 text-sm text-[#f6e1bd] hover:bg-white/10"
+              >
+                Retry
+              </button>
+              <button
+                onClick={handleLogout}
+                className="rounded-lg bg-[#cb6b1e] px-4 py-2 text-sm font-semibold text-black hover:bg-[#e37a2e]"
+              >
+                Back to login
+              </button>
+            </div>
           </div>
-          <button
-            onClick={() => {
-              setAuthenticated(false);
-              localStorage.removeItem("pitch-deck-authenticated");
-              setPin("");
-            }}
-            className="bg-[#cb6b1e] hover:bg-[#e37a2e] text-white px-6 py-2 rounded-lg transition-colors"
-          >
-            Back to Login
-          </button>
-        </div>
-      </div>
+        </main>
+      </DeckBackground>
     );
   }
+
+
 
   const sortedSlides = sortSlides(content.slides);
   const displaySlides = editMode && formState ? sortSlides(formState.slides) : sortedSlides;
@@ -476,24 +764,15 @@ export default function PitchDeckPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] relative overflow-hidden">
-      {/* Animated Background */}
-      <div className="fixed inset-0 pointer-events-none">
-        {/* Gradient orbs */}
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#cb6b1e]/5 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-[#cb6b1e]/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-
-        {/* Grid pattern */}
-        <div className="absolute inset-0 opacity-[0.02]"
-          style={{
-            backgroundImage: 'linear-gradient(#cb6b1e 1px, transparent 1px), linear-gradient(90deg, #cb6b1e 1px, transparent 1px)',
-            backgroundSize: '50px 50px'
-          }}
-        />
-      </div>
-
-      {/* Hero Header */}
-      <div className="relative border-b border-white/5">
+    <DeckBackground>
+      <main id="main-content" tabIndex={-1}>
+        {contentLiveMessage && (
+          <div className="sr-only" role="status" aria-live="polite">
+            {contentLiveMessage}
+          </div>
+        )}
+        {/* Hero Header */}
+        <div className="relative border-b border-white/5">
         <div className="max-w-5xl mx-auto px-6 py-12 flex flex-col items-center text-center gap-6">
           <div className="w-20 h-20">
             <BaselineLogo size="w-20 h-20" />
@@ -565,30 +844,33 @@ export default function PitchDeckPage() {
             {resolvedCountdownLabel}
           </div>
           {/* Countdown - Horizontal Glass Card */}
-          <div className="inline-flex flex-wrap justify-center items-center gap-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl px-6 py-4 shadow-lg">
-            <div className="text-sm text-[#a3a3a3] uppercase tracking-wide font-medium">
+          <div className="inline-flex flex-wrap justify-center items-center gap-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl px-6 py-4 shadow-lg" aria-live="polite">
+            <div className="text-sm text-[#d4d4d4] uppercase tracking-wide font-medium">
               Countdown
             </div>
             <div className="flex items-center gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-[#cb6b1e] font-mono">{countdown.days}</div>
-                <div className="text-xs text-[#a3a3a3] uppercase">Days</div>
+                <div className="text-xs text-[#d4d4d4] uppercase">Days</div>
               </div>
-              <div className="text-[#a3a3a3]">:</div>
+              <div className="text-[#d4d4d4]">:</div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-[#cb6b1e] font-mono">{String(countdown.hours).padStart(2, '0')}</div>
-                <div className="text-xs text-[#a3a3a3] uppercase">Hrs</div>
+                <div className="text-xs text-[#d4d4d4] uppercase">Hrs</div>
               </div>
-              <div className="text-[#a3a3a3]">:</div>
+              <div className="text-[#d4d4d4]">:</div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-[#cb6b1e] font-mono">{String(countdown.minutes).padStart(2, '0')}</div>
-                <div className="text-xs text-[#a3a3a3] uppercase">Min</div>
+                <div className="text-xs text-[#d4d4d4] uppercase">Min</div>
               </div>
-              <div className="text-[#a3a3a3]">:</div>
+              <div className="text-[#d4d4d4]">:</div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-[#cb6b1e] font-mono">{String(countdown.seconds).padStart(2, '0')}</div>
-                <div className="text-xs text-[#a3a3a3] uppercase">Sec</div>
+                <div className="text-xs text-[#d4d4d4] uppercase">Sec</div>
               </div>
+            </div>
+            <div className="sr-only" role="status" aria-live="polite">
+              {countdownAnnouncement}
             </div>
           </div>
         </div>
@@ -598,20 +880,25 @@ export default function PitchDeckPage() {
       {!editMode && (
         <div className="fixed bottom-6 right-6 z-50 flex gap-2">
           <button
-            onClick={() => {
-              setAuthenticated(false);
-              localStorage.removeItem("pitch-deck-authenticated");
-              setPin("");
-            }}
+            onClick={handleLogout}
             className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-2xl border border-white/20 text-[#a3a3a3] px-6 py-3 rounded-xl text-sm hover:bg-white/15 transition-all shadow-lg hover:shadow-xl"
             style={{
               boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 10px 30px rgba(0, 0, 0, 0.3)'
             }}
+            aria-label="Log out of the pitch deck"
           >
             Logout
           </button>
           <button
-            onClick={() => setShowAdminAuth(true)}
+            onClick={() => {
+              setAdminAuthError(null);
+              setAdminPin("");
+              setShowAdminAuth(true);
+            }}
+            ref={adminButtonRef}
+            aria-haspopup="dialog"
+            aria-expanded={showAdminAuth}
+            aria-controls="admin-access-dialog"
             className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-2xl border border-white/20 text-[#a3a3a3] px-6 py-3 rounded-xl text-sm hover:bg-white/15 transition-all shadow-lg hover:shadow-xl"
             style={{
               boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 10px 30px rgba(0, 0, 0, 0.3)'
@@ -660,11 +947,23 @@ export default function PitchDeckPage() {
 
       {/* Admin Auth Modal */}
       {showAdminAuth && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={adminModalTitleId}
+          id="admin-access-dialog"
+        >
           <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-8 max-w-md w-full">
-            <h2 className="text-2xl font-bold text-[#f6e1bd] mb-4">Admin Access</h2>
+            <h2
+              id={adminModalTitleId}
+              className="text-2xl font-bold text-[#f6e1bd] mb-4"
+            >
+              Admin Access
+            </h2>
             <form onSubmit={handleAdminAuth} className="space-y-4">
               <input
+                ref={adminPinInputRef}
                 type="password"
                 value={adminPin}
                 onChange={(e) => setAdminPin(e.target.value)}
@@ -672,13 +971,26 @@ export default function PitchDeckPage() {
                 placeholder="Admin PIN"
                 maxLength={4}
                 autoFocus
+                aria-invalid={Boolean(adminAuthError)}
+                aria-describedby={adminAuthError ? "admin-pin-error" : undefined}
               />
+              {adminAuthError && (
+                <p
+                  id="admin-pin-error"
+                  className="text-xs text-red-300"
+                  role="alert"
+                  aria-live="assertive"
+                >
+                  {adminAuthError}
+                </p>
+              )}
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => {
                     setShowAdminAuth(false);
                     setAdminPin("");
+                    setAdminAuthError(null);
                   }}
                   className="flex-1 bg-white/5 text-[#a3a3a3] px-4 py-3 rounded-lg hover:bg-white/10"
                 >
@@ -694,7 +1006,7 @@ export default function PitchDeckPage() {
             </form>
           </div>
         </div>
-      )}
+      )
 
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4 py-12">
@@ -789,14 +1101,18 @@ export default function PitchDeckPage() {
                       <button
                         onClick={() => handleMoveSlide(slide.id, "up")}
                         className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-[#a3a3a3]"
+                        aria-label="Move slide up"
                       >
-                        ↑
+                        <span aria-hidden="true">↑</span>
+                        <span className="sr-only">Move this slide up</span>
                       </button>
                       <button
                         onClick={() => handleMoveSlide(slide.id, "down")}
                         className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-[#a3a3a3]"
+                        aria-label="Move slide down"
                       >
-                        ↓
+                        <span aria-hidden="true">↓</span>
+                        <span className="sr-only">Move this slide down</span>
                       </button>
                     </div>
                     <button
@@ -939,26 +1255,30 @@ export default function PitchDeckPage() {
                 boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 20px 60px rgba(0, 0, 0, 0.4)'
               }}
             >
-              {editMode && !previewMode && (
-                <div className="flex justify-between items-center mb-4 pb-4 border-b border-white/10">
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() =>
-                        handleMoveSlide(displaySlides[currentSlideIndex].id, "up")
-                      }
-                      className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-[#a3a3a3]"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      onClick={() =>
-                        handleMoveSlide(displaySlides[currentSlideIndex].id, "down")
-                      }
-                      className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-[#a3a3a3]"
-                    >
-                      ↓
-                    </button>
-                  </div>
+                {editMode && !previewMode && (
+                  <div className="flex justify-between items-center mb-4 pb-4 border-b border-white/10">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() =>
+                          handleMoveSlide(displaySlides[currentSlideIndex].id, "up")
+                        }
+                        className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-[#a3a3a3]"
+                        aria-label="Move slide up"
+                      >
+                        <span aria-hidden="true">↑</span>
+                        <span className="sr-only">Move this slide up</span>
+                      </button>
+                      <button
+                        onClick={() =>
+                          handleMoveSlide(displaySlides[currentSlideIndex].id, "down")
+                        }
+                        className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-[#a3a3a3]"
+                        aria-label="Move slide down"
+                      >
+                        <span aria-hidden="true">↓</span>
+                        <span className="sr-only">Move this slide down</span>
+                      </button>
+                    </div>
                   <button
                     onClick={() => handleDeleteSlide(displaySlides[currentSlideIndex].id)}
                     className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm"
@@ -1160,6 +1480,7 @@ export default function PitchDeckPage() {
           </div>
         )}
       </div>
-    </div>
+      </main>
+    </DeckBackground>
   );
 }

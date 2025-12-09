@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import { AUTH_ERRORS, VALIDATION_ERRORS } from "../lib/errorMessages";
 import type { InvestorPersona } from "../lib/questionnaire";
 
 type InvestorLoginProps = {
@@ -34,16 +35,16 @@ const InvestorLogin: React.FC<InvestorLoginProps> = ({
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedSlug) {
-      setError("Select an investor profile to continue.");
+      setError(VALIDATION_ERRORS.INVESTOR_SELECTION_REQUIRED);
       return;
     }
     const profile = investors.find((investor) => investor.slug === selectedSlug);
     if (!profile) {
-      setError("We couldn't find that investor profile.");
+      setError(AUTH_ERRORS.INVESTOR_PROFILE_NOT_FOUND);
       return;
     }
     if (profile.pin !== pin.trim()) {
-      setError("Incorrect PIN. Check your secure text and try again.");
+      setError(AUTH_ERRORS.INVESTOR_PIN_INCORRECT);
       return;
     }
     setError("");
@@ -57,9 +58,11 @@ const InvestorLogin: React.FC<InvestorLoginProps> = ({
     return (
       <div className="min-h-screen bg-[#050505] text-[#f6e1bd] flex items-center justify-center">
         <div className="text-center space-y-2">
-          <p className="text-lg font-semibold">No investor profiles yet.</p>
+          <p className="text-lg font-semibold">
+            {VALIDATION_ERRORS.INVESTOR_CONFIGURATION_REQUIRED}
+          </p>
           <p className="text-sm text-[#a3a3a3]">
-            Add at least one investor to the questionnaire to enable login.
+            {VALIDATION_ERRORS.INVESTOR_CONFIGURATION_GUIDANCE}
           </p>
         </div>
       </div>

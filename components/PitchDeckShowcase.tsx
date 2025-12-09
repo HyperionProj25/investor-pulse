@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { PitchDeckContent, PitchDeckSlide, sortSlides } from "@/lib/pitchDeck";
 import { formatPitchDeckText } from "@/lib/formatPitchDeckText";
+import { VALIDATION_ERRORS } from "@/lib/errorMessages";
 
 type PitchDeckShowcaseProps = {
   content: PitchDeckContent | null;
@@ -66,7 +67,7 @@ const SlideCard = ({ slide }: { slide: PitchDeckSlide }) => {
         </div>
       ) : (
         <div className="text-sm text-[#a3a3a3] text-center py-12">
-          Invalid YouTube URL.
+          {VALIDATION_ERRORS.PITCH_DECK_VIDEO_URL_INVALID}
         </div>
       );
     }
@@ -100,7 +101,7 @@ const getYouTubeEmbed = (url: string) => {
       return id ? `https://www.youtube.com/embed/${id}` : null;
     }
   } catch (error) {
-    console.error("Invalid YouTube URL", error);
+    console.error(VALIDATION_ERRORS.PITCH_DECK_VIDEO_URL_INVALID, error);
   }
   return null;
 };

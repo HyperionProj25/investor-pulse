@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { DATABASE_ERRORS, VALIDATION_ERRORS } from "@/lib/errorMessages";
 
 export default async function TestDbPage() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -7,7 +8,7 @@ export default async function TestDbPage() {
   if (!supabaseUrl || !supabaseAnonKey) {
     return (
       <div style={{ padding: "2rem", fontFamily: "monospace" }}>
-        <h1 style={{ color: "red" }}>❌ Missing Environment Variables</h1>
+        <h1 style={{ color: "red" }}>{VALIDATION_ERRORS.SUPABASE_BROWSER_CONFIG_MISSING}</h1>
         <p>NEXT_PUBLIC_SUPABASE_URL: {supabaseUrl ? "✅ Set" : "❌ Missing"}</p>
         <p>NEXT_PUBLIC_SUPABASE_ANON_KEY: {supabaseAnonKey ? "✅ Set" : "❌ Missing"}</p>
       </div>
@@ -25,7 +26,7 @@ export default async function TestDbPage() {
   if (error) {
     return (
       <div style={{ padding: "2rem", fontFamily: "monospace" }}>
-        <h1 style={{ color: "red" }}>❌ Database Error</h1>
+        <h1 style={{ color: "red" }}>{DATABASE_ERRORS.GENERIC}</h1>
         <pre style={{ background: "#fee", padding: "1rem", borderRadius: "8px" }}>
           {JSON.stringify(error, null, 2)}
         </pre>
@@ -51,4 +52,3 @@ export default async function TestDbPage() {
     </div>
   );
 }
-

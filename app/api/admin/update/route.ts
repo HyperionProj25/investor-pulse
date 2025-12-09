@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { AUTH_ERRORS, DATABASE_ERRORS, VALIDATION_ERRORS } from "../../../../lib/errorMessages";
 import { getServiceSupabaseClient } from "../../../../lib/supabaseClient";
 import { ADMIN_PERSONAS, ADMIN_SLUGS } from "../../../../lib/adminUsers";
 
@@ -9,14 +10,14 @@ export async function POST(request: Request) {
 
     if (!adminSlug || !ADMIN_SLUGS.includes(adminSlug)) {
       return NextResponse.json(
-        { error: "Unauthorized admin." },
+        { error: AUTH_ERRORS.ADMIN_ACCESS_REQUIRED },
         { status: 401 }
       );
     }
 
     if (!payload) {
       return NextResponse.json(
-        { error: "Missing payload." },
+        { error: VALIDATION_ERRORS.PAYLOAD_REQUIRED },
         { status: 400 }
       );
     }
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Admin update failed", error);
     return NextResponse.json(
-      { error: "Failed to update questionnaire data." },
+      { error: DATABASE_ERRORS.QUESTIONNAIRE_UPDATE_FAILED },
       { status: 500 }
     );
   }
