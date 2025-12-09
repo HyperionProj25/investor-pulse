@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>Baseline Analytics – MVP Gantt Timeline</title>
+    <style>
+      :root {
+        --baseline-black: #0a0a0a;
+        --baseline-cream: #f2d8b3;
+        --baseline-blue: #4f9edb;
+        --baseline-orange: #f26c1a;
+        --baseline-gray: #262626;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        background: var(--baseline-black);
+        color: var(--baseline-cream);
+        line-height: 1.5;
+        padding: 2rem 1rem;
+      }
+
+      .page {
+        max-width: 1000px;
+        margin: 0 auto;
+        background: radial-gradient(
+          circle at top left,
+          #1a1a1a 0%,
+          #050505 60%
+        );
+        border-radius: 16px;
+        padding: 2rem 2.5rem;
+        border: 1px solid #1f1f1f;
+        box-shadow: 0 18px 45px rgba(0, 0, 0, 0.7);
+      }
+
+      header {
+        margin-bottom: 1.75rem;
+      }
+
+      .title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .logo-mark {
+        width: 48px;
+        height: 48px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .baseline-logo {
+        width: 100%;
+        height: 100%;
+      }
+      .baseline-line {
+        animation: baselineWave 1.2s ease-in-out infinite;
+        transform-origin: center;
+      }
+
+      .subtitle {
+        margin-top: 0.4rem;
+        font-size: 0.9rem;
+        color: #d4c2a2;
+      }
+
+      .meta {
+        margin-top: 0.7rem;
+        font-size: 0.82rem;
+        color: #a99b82;
+      }
+
+      h2 {
+        font-size: 1.05rem;
+        margin: 1.6rem 0 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--baseline-blue);
+        font-weight: 600;
+      }
+
+      h3 {
+        font-size: 0.9rem;
+        margin: 0.75rem 0 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #d3c4a4;
+      }
+
+      p {
+        font-size: 0.9rem;
+        margin-bottom: 0.35rem;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem 1.25rem;
+        font-size: 0.8rem;
+        margin-bottom: 0.75rem;
+      }
+
+      .legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+      }
+
+      .dot-planning {
+        background: #6b7280;
+      }
+      .dot-dev {
+        background: var(--baseline-blue);
+      }
+      .dot-test {
+        background: #eab308;
+      }
+      .dot-launch {
+        background: var(--baseline-orange);
+      }
+      .dot-post {
+        background: #22c55e;
+      }
+
+      .roadmap-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1.5rem;
+        border: 1px solid #1f1f1f;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      .roadmap-table thead {
+        background: rgba(255, 255, 255, 0.04);
+      }
+
+      .roadmap-table th,
+      .roadmap-table td {
+        padding: 0.75rem 0.9rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        font-size: 0.86rem;
+      }
+
+      .roadmap-table th {
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-size: 0.78rem;
+        color: #a99b82;
+      }
+
+      .phase-label {
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .phase-planning {
+        color: #9ca3af;
+      }
+      .phase-dev {
+        color: var(--baseline-blue);
+      }
+      .phase-test {
+        color: #facc15;
+      }
+      .phase-launch {
+        color: var(--baseline-orange);
+      }
+      .phase-post {
+        color: #22c55e;
+      }
+
+      .gantt-wrapper {
+        margin-top: 1.5rem;
+        border: 1px solid #1f1f1f;
+        border-radius: 14px;
+        padding: 1.25rem;
+        background: rgba(15, 15, 15, 0.9);
+      }
+
+      .gantt-header {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #a99b82;
+        margin-bottom: 1rem;
+      }
+
+      .gantt-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+      }
+
+      .gantt-row {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .gantt-row-label {
+        width: 145px;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #d3c4a4;
+      }
+
+      .gantt-track {
+        position: relative;
+        flex: 1;
+        height: 18px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.05);
+        overflow: hidden;
+      }
+
+      .gantt-bar {
+        position: absolute;
+        height: 100%;
+        border-radius: 999px;
+      }
+
+      .bar-planning {
+        background: linear-gradient(90deg, #6b7280, #9ca3af);
+        width: 20%;
+        left: 3%;
+      }
+
+      .bar-dev {
+        background: linear-gradient(90deg, #4f9edb, #7cc0ff);
+        width: 35%;
+        left: 18%;
+      }
+
+      .bar-test {
+        background: linear-gradient(90deg, #facc15, #fde047);
+        width: 20%;
+        left: 48%;
+      }
+
+      .bar-launch {
+        background: linear-gradient(90deg, #f26c1a, #faae6b);
+        width: 15%;
+        left: 61%;
+      }
+
+      .bar-post {
+        background: linear-gradient(90deg, #22c55e, #4ade80);
+        width: 15%;
+        left: 72%;
+      }
+
+      .milestones {
+        margin-top: 2rem;
+      }
+
+      .milestones-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-top: 0.75rem;
+      }
+
+      .milestone-item {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 0.85rem;
+        background: rgba(9, 9, 9, 0.85);
+      }
+
+      .milestone-title {
+        font-size: 0.85rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .milestone-meta {
+        font-size: 0.78rem;
+        color: #a99b82;
+        margin-top: 0.3rem;
+      }
+
+      footer {
+        margin-top: 2rem;
+        font-size: 0.78rem;
+        color: #a99b82;
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      @media (max-width: 720px) {
+        .page {
+          padding: 1.5rem;
+        }
+
+        .gantt-row {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .gantt-row-label {
+          width: 100%;
+        }
+      }
+
+      .today-line {
+        position: absolute;
+        top: -6px;
+        bottom: -6px;
+        width: 2px;
+        background: rgba(242, 108, 26, 0.9);
+        box-shadow: 0 0 10px rgba(242, 108, 26, 0.7);
+      }
+
+      @keyframes baselineWave {
+        0%,
+        100% {
+          transform: scaleY(0.2);
+        }
+        50% {
+          transform: scaleY(1);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem">
+        <a
+          href="/"
+          style="
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            font-size: 0.7rem;
+            color: var(--baseline-cream);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 0.35rem 0.9rem;
+            border-radius: 999px;
+            text-decoration: none;
+            background: rgba(255, 255, 255, 0.02);
+          "
+        >
+          ← Back to Investor Pulse
+        </a>
+      </div>
+      <header>
+        <div class="title">
+          <span class="logo-mark">
+            <svg viewBox="0 0 100 100" class="baseline-logo">
+              <path
+                d="M20,20 L80,20 L80,50 L50,70 L20,50 Z"
+                fill="none"
+                stroke="#f6e1bd"
+                stroke-width="2"
+              />
+              <line x1="20" y1="20" x2="80" y2="20" stroke="#f6e1bd" stroke-width="2" />
+              <text
+                x="50"
+                y="20"
+                text-anchor="middle"
+                font-size="9"
+                font-weight="bold"
+                fill="#0A0A0A"
+                stroke-width="4"
+                stroke="#0A0A0A"
+              >
+                BASELINE
+              </text>
+              <text
+                x="50"
+                y="23"
+                text-anchor="middle"
+                font-size="9"
+                font-weight="bold"
+                fill="#f6e1bd"
+              >
+                BASELINE
+              </text>
+              <circle cx="20" cy="20" r="3" fill="#f6e1bd" />
+              <circle cx="80" cy="20" r="3" fill="#f6e1bd" />
+              <circle cx="20" cy="50" r="3" fill="#f6e1bd" />
+              <circle cx="80" cy="50" r="3" fill="#f6e1bd" />
+              <circle cx="50" cy="70" r="3" fill="#f6e1bd" />
+              <g>
+                <line x1="30" y1="26" x2="30" y2="51" stroke="#cb6b1e" stroke-width="2" class="baseline-line" style="animation-delay: 0s; transform-origin: 30px 51px;" />
+                <circle cx="30" cy="51" r="2.5" fill="#cb6b1e" />
+              </g>
+              <g>
+                <line x1="40" y1="32" x2="40" y2="57" stroke="#cb6b1e" stroke-width="2" class="baseline-line" style="animation-delay: 0.2s; transform-origin: 40px 57px;" />
+                <circle cx="40" cy="57" r="2.5" fill="#cb6b1e" />
+              </g>
+              <g>
+                <line x1="50" y1="36" x2="50" y2="61" stroke="#cb6b1e" stroke-width="2" class="baseline-line" style="animation-delay: 0.4s; transform-origin: 50px 61px;" />
+                <circle cx="50" cy="61" r="2.5" fill="#cb6b1e" />
+              </g>
+              <g>
+                <line x1="60" y1="32" x2="60" y2="57" stroke="#cb6b1e" stroke-width="2" class="baseline-line" style="animation-delay: 0.6s; transform-origin: 60px 57px;" />
+                <circle cx="60" cy="57" r="2.5" fill="#cb6b1e" />
+              </g>
+              <g>
+                <line x1="70" y1="26" x2="70" y2="51" stroke="#cb6b1e" stroke-width="2" class="baseline-line" style="animation-delay: 0.8s; transform-origin: 70px 51px;" />
+                <circle cx="70" cy="51" r="2.5" fill="#cb6b1e" />
+              </g>
+            </svg>
+          </span>
+          Baseline Analytics – MVP Gantt
+        </div>
+        <p class="subtitle">
+          MVP build for Facility OS, investor reporting, and internal dashboard
+          infrastructure.
+        </p>
+        <p class="meta">
+          Updated December 2025 • Owners: Engineering + RevOps • Source of
+          truth for investor cadence.
+        </p>
+      </header>
+
+      <section>
+        <h2>Phase Overview</h2>
+        <div class="legend">
+          <span class="legend-item"
+            ><span class="dot dot-planning"></span> Planning</span
+          >
+          <span class="legend-item"
+            ><span class="dot dot-dev"></span> Build / Dev</span
+          >
+          <span class="legend-item"
+            ><span class="dot dot-test"></span> Validation</span
+          >
+          <span class="legend-item"
+            ><span class="dot dot-launch"></span> Launch</span
+          >
+          <span class="legend-item"
+            ><span class="dot dot-post"></span> Post-Launch</span
+          >
+        </div>
+
+        <table class="roadmap-table">
+          <thead>
+            <tr>
+              <th>Phase</th>
+              <th>Timing</th>
+              <th>Focus</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="phase-label phase-planning">Phase 1 – Planning</td>
+              <td>Dec 2025</td>
+              <td>
+                MVP scope, data models, and facility onboarding architecture.
+              </td>
+            </tr>
+            <tr>
+              <td class="phase-label phase-dev">Phase 2 – Build</td>
+              <td>Jan – Feb 2026</td>
+              <td>
+                Facility OS foundations, ingestion pipeline, investor hub v1.
+              </td>
+            </tr>
+            <tr>
+              <td class="phase-label phase-test">Phase 3 – Validation</td>
+              <td>Mar 2026</td>
+              <td>Closed pilots, QA, data quality sweeps, investor preview.</td>
+            </tr>
+            <tr>
+              <td class="phase-label phase-launch">Phase 4 – Launch</td>
+              <td>May 2026</td>
+              <td>MVP release, enablement, and investor launch cadence.</td>
+            </tr>
+            <tr>
+              <td class="phase-label phase-post">
+                Phase 5 – Post-Launch &amp; Phase 2 Prep
+              </td>
+              <td>Late May – Jun 2026</td>
+              <td>Metrics review, second facility cohort, Phase 2 scope.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Detailed Gantt Timeline</h2>
+        <h3>Dec 2025 – Jun 2026</h3>
+        <div class="gantt-wrapper">
+          <div class="gantt-header">
+            <span>Dec 2025</span>
+            <span>Jan 2026</span>
+            <span>Feb 2026</span>
+            <span>Mar 2026</span>
+            <span>Apr 2026</span>
+            <span>May 2026</span>
+            <span>Jun 2026</span>
+          </div>
+          <div class="gantt-grid">
+            <div class="gantt-row">
+              <div class="gantt-row-label">Phase 1 – Planning</div>
+              <div class="gantt-track">
+                <span class="gantt-bar bar-planning"></span>
+              </div>
+            </div>
+            <div class="gantt-row">
+              <div class="gantt-row-label">Phase 2 – Build</div>
+              <div class="gantt-track">
+                <span class="gantt-bar bar-dev"></span>
+              </div>
+            </div>
+            <div class="gantt-row">
+              <div class="gantt-row-label">Phase 3 – Validation</div>
+              <div class="gantt-track">
+                <span class="gantt-bar bar-test"></span>
+              </div>
+            </div>
+            <div class="gantt-row">
+              <div class="gantt-row-label">Phase 4 – Launch</div>
+              <div class="gantt-track">
+                <span class="gantt-bar bar-launch"></span>
+              </div>
+            </div>
+            <div class="gantt-row">
+              <div class="gantt-row-label">Phase 5 – Post-Launch</div>
+              <div class="gantt-track">
+                <span class="gantt-bar bar-post"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="milestones">
+        <h2>Key Milestones</h2>
+        <div class="milestones-grid">
+          <div class="milestone-item">
+            <div class="milestone-title">MVP Scope Defined</div>
+            <div class="milestone-meta">Dec 15, 2025</div>
+          </div>
+          <div class="milestone-item">
+            <div class="milestone-title">Architecture Finalized</div>
+            <div class="milestone-meta">Dec 22, 2025</div>
+          </div>
+          <div class="milestone-item">
+            <div class="milestone-title">UI/UX Complete</div>
+            <div class="milestone-meta">Jan 10, 2026</div>
+          </div>
+          <div class="milestone-item">
+            <div class="milestone-title">Core Features Built</div>
+            <div class="milestone-meta">Mar 1, 2026</div>
+          </div>
+          <div class="milestone-item">
+            <div class="milestone-title">Feature Freeze</div>
+            <div class="milestone-meta">Mar 8, 2026</div>
+          </div>
+          <div class="milestone-item">
+            <div class="milestone-title">Alpha Testing</div>
+            <div class="milestone-meta">Starts Mar 10, 2026</div>
+          </div>
+          <div class="milestone-item">
+            <div class="milestone-title">Beta Launch</div>
+            <div class="milestone-meta">Apr 1, 2026</div>
+          </div>
+          <div class="milestone-item">
+            <div class="milestone-title">MVP Public Launch</div>
+            <div class="milestone-meta">May 10, 2026</div>
+          </div>
+          <div class="milestone-item">
+            <div class="milestone-title">Metrics Review</div>
+            <div class="milestone-meta">Late May 2026</div>
+          </div>
+          <div class="milestone-item">
+            <div class="milestone-title">Phase 2 Planning</div>
+            <div class="milestone-meta">June 2026</div>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        <span>Baseline Analytics • MVP Timeline</span>
+        <span>Edit dates, text, and bar widths in this file to refresh the
+          roadmap.</span>
+      </footer>
+    </div>
+
+    <script>
+      const start = new Date("2025-12-01");
+      const end = new Date("2026-06-30");
+      const now = new Date();
+      let pct = ((now - start) / (end - start)) * 100;
+      pct = Math.min(Math.max(pct, 0), 100);
+      document.querySelectorAll(".gantt-track").forEach((track) => {
+        const line = document.createElement("div");
+        line.className = "today-line";
+        line.style.left = pct + "%";
+        track.appendChild(line);
+      });
+    </script>
+  </body>
+</html>

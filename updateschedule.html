@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Baseline Analytics – MVP Gantt Timeline</title>
+  <style>
+    :root {
+      --baseline-black: #0a0a0a;
+      --baseline-cream: #f2d8b3;
+      --baseline-blue: #4f9edb;
+      --baseline-orange: #f26c1a;
+      --baseline-gray: #262626;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--baseline-black);
+      color: var(--baseline-cream);
+      line-height: 1.5;
+      padding: 2rem 1rem;
+    }
+
+    .page {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: radial-gradient(circle at top left, #1a1a1a 0, #050505 60%);
+      border-radius: 16px;
+      padding: 2rem 2.5rem;
+      border: 1px solid #1f1f1f;
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.7);
+    }
+
+    header {
+      margin-bottom: 1.75rem;
+    }
+
+    .title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-mark {
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      border: 1px solid var(--baseline-cream);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      color: var(--baseline-orange);
+    }
+
+    .subtitle {
+      margin-top: 0.4rem;
+      font-size: 0.9rem;
+      color: #d4c2a2;
+    }
+
+    .meta {
+      margin-top: 0.7rem;
+      font-size: 0.82rem;
+      color: #a99b82;
+    }
+
+    h2 {
+      font-size: 1.05rem;
+      margin: 1.6rem 0 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--baseline-blue);
+      font-weight: 600;
+    }
+
+    h3 {
+      font-size: 0.9rem;
+      margin: 0.75rem 0 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #d3c4a4;
+    }
+
+    p {
+      font-size: 0.9rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1.25rem;
+      font-size: 0.8rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+    }
+
+    .dot-planning { background: #6b7280; }
+    .dot-dev { background: var(--baseline-blue); }
+    .dot-test { background: #eab308; }
+    .dot-launch { background: var(--baseline-orange); }
+    .dot-post { background: #22c55e; }
+
+    .roadmap-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+      margin-bottom: 1.75rem;
+    }
+
+    .roadmap-table th,
+    .roadmap-table td {
+      padding: 0.45rem 0.5rem;
+      text-align: left;
+    }
+
+    .roadmap-table thead {
+      border-bottom: 1px solid #333333;
+      color: #e5d6b8;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .roadmap-table tbody tr:nth-child(odd) {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .roadmap-table tbody tr:nth-child(even) {
+      background: rgba(255, 255, 255, 0.01);
+    }
+
+    .phase-label {
+      font-weight: 600;
+    }
+
+    .phase-planning { color: #e5e7eb; }
+    .phase-dev { color: var(--baseline-blue); }
+    .phase-test { color: #facc15; }
+    .phase-launch { color: var(--baseline-orange); }
+    .phase-post { color: #4ade80; }
+
+    .gantt-wrapper {
+      margin-top: 0.5rem;
+      padding: 1rem;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(242, 216, 179, 0.06), rgba(10, 10, 10, 0.9));
+      border: 1px solid #37302a;
+    }
+
+    .gantt-header {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #bba98a;
+      margin-bottom: 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .gantt-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      font-size: 0.8rem;
+    }
+
+    .gantt-row-label {
+      width: 135px;
+      flex-shrink: 0;
+      color: #d4c2a2;
+      font-weight: 500;
+    }
+
+    .gantt-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .gantt-track {
+      flex: 1;
+      height: 14px;
+      border-radius: 999px;
+      background: #111827;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .gantt-bar {
+      position: absolute;
+      top: 2px;
+      bottom: 2px;
+      border-radius: 999px;
+      display: block;
+    }
+
+    /* Adjust these left/width values to shift the timing visually */
+    .bar-planning {
+      left: 0%;
+      width: 14%;
+      background: #6b7280;
+    }
+
+    .bar-dev {
+      left: 14%;
+      width: 43%;
+      background: var(--baseline-blue);
+    }
+
+    .bar-test {
+      left: 47%;
+      width: 18%;
+      background: #eab308;
+    }
+
+    .bar-launch {
+      left: 65%;
+      width: 10%;
+      background: var(--baseline-orange);
+    }
+
+    .bar-post {
+      left: 75%;
+      width: 18%;
+      background: #22c55e;
+    }
+
+    .milestones {
+      margin-top: 1.5rem;
+      font-size: 0.8rem;
+    }
+
+    .milestones-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 0.7rem;
+      margin-top: 0.6rem;
+    }
+
+    .milestone-item {
+      background: rgba(15, 23, 42, 0.9);
+      border-radius: 10px;
+      padding: 0.55rem 0.7rem;
+      border: 1px solid rgba(120, 113, 108, 0.7);
+    }
+
+    .milestone-title {
+      font-weight: 500;
+      margin-bottom: 0.1rem;
+    }
+
+    .milestone-meta {
+      font-size: 0.75rem;
+      color: #b0a186;
+    }
+
+    footer {
+      margin-top: 2rem;
+      font-size: 0.75rem;
+      color: #8f826a;
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 700px) {
+      .page {
+        padding: 1.5rem 1.25rem;
+      }
+
+      .gantt-row-label {
+        width: 110px;
+        font-size: 0.75rem;
+      }
+    }
+    .today-line { position:absolute; top:0; bottom:0; width:2px; background:var(--baseline-orange); opacity:0.9; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="title">
+        <span class="logo-mark">BA</span>
+        <span>Baseline Analytics – MVP Gantt Timeline</span>
+      </div>
+      <p class="subtitle">MVP roadmap for Baseline Analytics from Discovery to Post-Launch (Jan–Jun 2026).</p>
+      <p class="meta">Simple, single-page overview. Edit copy, dates, and bar widths directly in this HTML file.</p>
+    </header>
+
+    <section>
+      <h2>Legend</h2>
+      <div class="legend">
+        <span class="legend-item"><span class="dot dot-planning"></span> Planning</span>
+        <span class="legend-item"><span class="dot dot-dev"></span> Development</span>
+        <span class="legend-item"><span class="dot dot-test"></span> Testing / QA</span>
+        <span class="legend-item"><span class="dot dot-launch"></span> Launch</span>
+        <span class="legend-item"><span class="dot dot-post"></span> Post-Launch</span>
+      </div>
+    </section>
+
+    <section>
+      <h2>High-Level Roadmap</h2>
+      <table class="roadmap-table">
+        <thead>
+          <tr>
+            <th>Phase</th>
+            <th>Timeline</th>
+            <th>Summary</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="phase-label phase-planning">Phase 1 – Discovery &amp; Planning</td>
+            <td>Dec 2025</td>
+            <td>Finalize MVP scope and technical architecture.</td>
+          </tr>
+          <tr>
+            <td class="phase-label phase-dev">Phase 2 – Core Development</td>
+            <td>Jan – Mar 2026</td>
+            <td>Build data upload pipeline, player reports, and combine workflow.</td>
+          </tr>
+          <tr>
+            <td class="phase-label phase-test">Phase 3 – Testing &amp; QA</td>
+            <td>Mar – Apr 2026</td>
+            <td>Run internal alpha, then external beta with partner teams.</td>
+          </tr>
+          <tr>
+            <td class="phase-label phase-launch">Phase 4 – Launch</td>
+            <td>May 2026</td>
+            <td>Public MVP release and initial marketing push.</td>
+          </tr>
+          <tr>
+            <td class="phase-label phase-post">Phase 5 – Post-Launch &amp; Phase 2 Prep</td>
+            <td>Late May – Jun 2026</td>
+            <td>Review success metrics and define Phase 2 roadmap.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Detailed Gantt Timeline</h2>
+      <h3>Jan – Jun 2026</h3>
+      <div class="gantt-wrapper">
+        <div class="gantt-header">
+          <span>Dec 2025</span>
+          <span>Jan 2026</span>
+          <span>Feb 2026</span>
+          <span>Mar 2026</span>
+          <span>Apr 2026</span>
+          <span>May 2026</span>
+          <span>Jun 2026</span>
+        </div>
+        <div class="gantt-grid">
+          <div class="gantt-row">
+            <div class="gantt-row-label">Phase 1 – Planning</div>
+            <div class="gantt-track">
+              <span class="gantt-bar bar-planning"></span>
+            </div>
+          </div>
+          <div class="gantt-row">
+            <div class="gantt-row-label">Phase 2 – Dev</div>
+            <div class="gantt-track">
+              <span class="gantt-bar bar-dev"></span>
+            </div>
+          </div>
+          <div class="gantt-row">
+            <div class="gantt-row-label">Phase 3 – Testing</div>
+            <div class="gantt-track">
+              <span class="gantt-bar bar-test"></span>
+            </div>
+          </div>
+          <div class="gantt-row">
+            <div class="gantt-row-label">Phase 4 – Launch</div>
+            <div class="gantt-track">
+              <span class="gantt-bar bar-launch"></span>
+            </div>
+          </div>
+          <div class="gantt-row">
+            <div class="gantt-row-label">Phase 5 – Post-Launch</div>
+            <div class="gantt-track">
+              <span class="gantt-bar bar-post"></span>
+            </div>
+          </div>
+              </div>
+      <script>
+        const start=new Date('2025-12-01');
+        const end=new Date('2026-06-30');
+        const now=new Date();
+        let pct=(now-start)/(end-start)*100;
+        pct=Math.min(Math.max(pct,0),100);
+        document.querySelectorAll('.gantt-track').forEach(track=>{
+          const line=document.createElement('div');
+          line.className='today-line';
+          line.style.left=pct+'%';
+          track.appendChild(line.cloneNode(true));
+        });
+      </script>
+    </section>
+
+    <section class="milestones">
+      <h2>Key Milestones</h2>
+      <div class="milestones-grid">
+        <div class="milestone-item">
+          <div class="milestone-title">🔷 MVP Scope Defined</div>
+          <div class="milestone-meta">Dec 15, 2025</div>
+        </div>
+        <div class="milestone-item">
+          <div class="milestone-title">🧩 Architecture Finalized</div>
+          <div class="milestone-meta">Dec 22, 2025</div>
+        </div>
+        <div class="milestone-item">
+          <div class="milestone-title">✏️ UI/UX Complete</div>
+          <div class="milestone-meta">Jan 10, 2026</div>
+        </div>
+        <div class="milestone-item">
+          <div class="milestone-title">🛠 Core Features Built</div>
+          <div class="milestone-meta">Mar 1, 2026</div>
+        </div>
+        <div class="milestone-item">
+          <div class="milestone-title">⛔ Feature Freeze</div>
+          <div class="milestone-meta">Mar 8, 2026</div>
+        </div>
+        <div class="milestone-item">
+          <div class="milestone-title">🧪 Alpha Testing</div>
+          <div class="milestone-meta">Starts Mar 10, 2026</div>
+        </div>
+        <div class="milestone-item">
+          <div class="milestone-title">🚧 Beta Launch</div>
+          <div class="milestone-meta">Apr 1, 2026</div>
+        </div>
+        <div class="milestone-item">
+          <div class="milestone-title">🚀 MVP Public Launch</div>
+          <div class="milestone-meta">May 10, 2026</div>
+        </div>
+        <div class="milestone-item">
+          <div class="milestone-title">🔍 Metrics Review</div>
+          <div class="milestone-meta">Late May 2026</div>
+        </div>
+        <div class="milestone-item">
+          <div class="milestone-title">📈 Phase 2 Planning</div>
+          <div class="milestone-meta">June 2026</div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <span>Baseline Analytics • MVP Timeline</span>
+      <span>Edit dates, text, and bar widths in this file to keep the roadmap current.</span>
+    </footer>
+  </div>
+</body>
+</html>
