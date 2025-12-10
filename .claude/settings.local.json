@@ -17,7 +17,10 @@
       "Bash(if exist seed_payload.json del seed_payload.json)",
       "Bash(if exist apply_timeline_migrations.sql del apply_timeline_migrations.sql)",
       "Bash(if exist appadminpage.tsx.bak del appadminpage.tsx.bak)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(node -e:*)"
     ],
     "deny": [],
     "ask": []
