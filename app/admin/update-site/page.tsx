@@ -213,7 +213,10 @@ const AdminUpdateSitePage = () => {
       const payload = {
         ...existingData,
         hero: form.hero,
-        metadata: form.metadata,
+        metadata: {
+          ...form.metadata,
+          lastUpdated: new Date().toISOString(), // Auto-update to current time on save
+        },
         funding: {
           roundType: form.funding.roundType,
           target: Number(form.funding.target) || 0,

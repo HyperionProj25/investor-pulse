@@ -6,7 +6,7 @@ type BaselineLogoProps = {
   size?: string;
 };
 
-const BaselineLogo: React.FC<BaselineLogoProps> = ({ size = "w-24 h-24" }) => {
+const BaselineLogo: React.FC<BaselineLogoProps> = ({ size = "w-32 h-32" }) => {
   const animationStyles = `
     .lineAnimation {
       animation: waveUp 1s ease-in-out infinite;
