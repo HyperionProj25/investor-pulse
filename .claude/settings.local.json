@@ -2,7 +2,22 @@
   "permissions": {
     "allow": [
       "Bash(ls:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(supabase:*)",
+      "Bash(npx supabase --version)",
+      "Bash(npx supabase:*)",
+      "Bash(curl:*)",
+      "Bash(npm run dev:*)",
+      "Bash(taskkill:*)",
+      "Bash(timeout /t 3)",
+      "Bash(del /Q BaselineDashboardUpdate.txt diff.txt nul seed_payload.json apply_timeline_migrations.sql appadminpage.tsx.bak)",
+      "Bash(if exist BaselineDashboardUpdate.txt del BaselineDashboardUpdate.txt)",
+      "Bash(if exist diff.txt del diff.txt)",
+      "Bash(if exist nul del nul)",
+      "Bash(if exist seed_payload.json del seed_payload.json)",
+      "Bash(if exist apply_timeline_migrations.sql del apply_timeline_migrations.sql)",
+      "Bash(if exist appadminpage.tsx.bak del appadminpage.tsx.bak)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

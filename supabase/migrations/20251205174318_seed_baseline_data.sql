@@ -185,7 +185,23 @@ VALUES (
         "question": "What is the single sentence story for this batch of updates?",
         "helper": "Refreshes the mission text + hero descriptor."
       }
-    ]
+    ],
+    "mvpSnapshot": {
+      "title": "MVP Snapshot",
+      "ctaLabel": "Update schedule",
+      "previous": {
+        "label": "Previous task",
+        "title": "Facility OS investor preview",
+        "description": "Ran the full workflow end-to-end with the investor dashboard.",
+        "statusLabel": "Completed Nov 30"
+      },
+      "next": {
+        "label": "Next task",
+        "title": "Deploy facility beta",
+        "description": "Instrument two additional training centers and publish shared analytics.",
+        "statusLabel": "Target Jan 31"
+      }
+    }
   }'::jsonb,
   1,
   'Initial Seed'
@@ -378,7 +394,23 @@ VALUES (
         "question": "What is the single sentence story for this batch of updates?",
         "helper": "Refreshes the mission text + hero descriptor."
       }
-    ]
+    ],
+    "mvpSnapshot": {
+      "title": "MVP Snapshot",
+      "ctaLabel": "Update schedule",
+      "previous": {
+        "label": "Previous task",
+        "title": "Facility OS investor preview",
+        "description": "Ran the full workflow end-to-end with the investor dashboard.",
+        "statusLabel": "Completed Nov 30"
+      },
+      "next": {
+        "label": "Next task",
+        "title": "Deploy facility beta",
+        "description": "Instrument two additional training centers and publish shared analytics.",
+        "statusLabel": "Target Jan 31"
+      }
+    }
   }'::jsonb,
   'Baseline content from codebase'
 );

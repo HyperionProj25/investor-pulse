@@ -4,16 +4,63 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import BaselineLogo from "../components/BaselineLogo";
 import AccessPortal from "../components/AccessPortal";
-import { formatPitchDeckText } from "../lib/formatPitchDeckText";
 import {
-  BASELINE_UPDATE,
   buildContentFromQuestionnaire,
+  type DerivedContent,
+  type QuestionnaireAnswers,
 } from "../lib/questionnaire";
 import { PitchDeckContent } from "../lib/pitchDeck";
 import { DATABASE_ERRORS } from "../lib/errorMessages";
 import { toast } from "react-hot-toast";
 
-const defaultContent = buildContentFromQuestionnaire(BASELINE_UPDATE);
+const EMPTY_ANSWERS: QuestionnaireAnswers = {
+  hero: {
+    kicker: "",
+    h1Lead: "",
+    h1Accent: "",
+    h1Trail: "",
+    mission: "",
+    descriptor: "",
+  },
+  metadata: {
+    lastUpdated: new Date().toISOString(),
+    launchTarget: new Date().toISOString(),
+    milestoneLabel: "",
+  },
+  funding: {
+    roundType: "",
+    target: 0,
+    committed: 0,
+    minCheck: "",
+    closeDate: "",
+    useOfFunds: "",
+  },
+  snapshots: [],
+  tractionNarrative: "",
+  investors: [],
+  updatePrompts: [],
+  mvpSnapshot: {
+    title: "",
+    ctaLabel: "",
+    previous: {
+      label: "",
+      title: "",
+      description: "",
+      statusLabel: "",
+    },
+    next: {
+      label: "",
+      title: "",
+      description: "",
+      statusLabel: "",
+    },
+  },
+};
+
+const EMPTY_CONTENT = buildContentFromQuestionnaire(EMPTY_ANSWERS);
+const EMPTY_LAUNCH_TARGET = Number.isFinite(EMPTY_CONTENT.metadata.launchTimestamp)
+  ? EMPTY_CONTENT.metadata.launchTimestamp
+  : Date.now();
 
 type Countdown = {
   days: number;
@@ -78,23 +125,6 @@ const OverviewSkeleton = () => (
   </div>
 );
 
-const SnapshotSkeleton = () => (
-  <div
-    className="space-y-5 animate-pulse"
-    role="status"
-    aria-live="polite"
-    aria-label="Loading investor snapshot"
-  >
-    <SkeletonBlock className="h-6 w-64" />
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {[...Array(4)].map((_, idx) => (
-        <SkeletonBlock key={idx} className="h-24" />
-      ))}
-    </div>
-    <SkeletonBlock className="h-24" />
-  </div>
-);
-
 const CountdownSkeleton = () => (
   <div
     className="space-y-4 animate-pulse"
@@ -114,7 +144,7 @@ const CountdownSkeleton = () => (
 export default function Home() {
   const searchParams = useSearchParams();
   const investorSlugFromParams = searchParams.get("investor");
-  const [content, setContent] = useState(defaultContent);
+  const [content, setContent] = useState<DerivedContent>(EMPTY_CONTENT);
   const [pitchDeck, setPitchDeck] = useState<PitchDeckContent | null>(null);
   const [authenticatedSlug, setAuthenticatedSlug] = useState<string | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
@@ -124,17 +154,26 @@ export default function Home() {
   const [deckError, setDeckError] = useState<string | null>(null);
   const [countdownAnnouncement, setCountdownAnnouncement] = useState("");
   const [loadingAnnouncement, setLoadingAnnouncement] = useState("");
+  const [progressAnimated, setProgressAnimated] = useState(false);
 
-  const initialTarget = Number.isFinite(defaultContent.metadata.launchTimestamp)
-    ? defaultContent.metadata.launchTimestamp
-    : Date.now();
-  const [countdownTarget, setCountdownTarget] = useState(initialTarget);
+  const [countdownTarget, setCountdownTarget] = useState(EMPTY_LAUNCH_TARGET);
   const [countdown, setCountdown] = useState<Countdown>(
-    getTimeRemaining(initialTarget)
+    getTimeRemaining(EMPTY_LAUNCH_TARGET)
   );
 
-  const { hero, metadata, funding, snapshots, investors } = content;
+  const { hero, metadata, funding, snapshots, investors, mvpSnapshot } = content;
   const lastUpdated = metadata.lastUpdatedDisplay;
+  const heroHeadingSegments = [
+    { text: hero.h1Lead, accent: false },
+    { text: hero.h1Accent, accent: true },
+    { text: hero.h1Trail, accent: false },
+  ].filter((segment) => segment.text && segment.text.trim().length > 0);
+  const displayHeroSegments =
+    heroHeadingSegments.length > 0
+      ? heroHeadingSegments
+      : [{ text: "Baseline Analytics", accent: false }];
+  const heroMissionText = hero.mission?.trim() ?? "";
+  const heroDescriptorText = hero.descriptor?.trim() ?? "";
 
   const investorProfiles = useMemo(
     () => investors.filter((inv) => inv.slug !== "pre-pitch-deck"),
@@ -145,6 +184,12 @@ export default function Home() {
 
   const latestSnapshot =
     snapshots[snapshots.length - 1] ?? snapshots[0] ?? fallbackSnapshot;
+  const organizations = Number.isFinite(latestSnapshot.facilities)
+    ? latestSnapshot.facilities
+    : 0;
+  const reports = Number.isFinite(latestSnapshot.events)
+    ? latestSnapshot.events
+    : 0;
 
   const fetchSiteContent = useCallback(async () => {
     setSiteLoading(true);
@@ -262,13 +307,6 @@ useEffect(() => {
     window.history.replaceState({}, "", url.toString());
   }, [investorSlugFromParams]);
 
-const heroTitleHtml = formatPitchDeckText(
-  pitchDeck?.title ||
-    `# ${hero.h1Lead} ${hero.h1Accent} ${hero.h1Trail}`.trim()
-);
-const heroTaglineHtml = formatPitchDeckText(
-  pitchDeck?.tagline || hero.mission
-);
 const countdownLabel =
   pitchDeck?.countdown?.label || metadata.milestoneLabel;
 
@@ -276,6 +314,15 @@ useEffect(() => {
   const message = `Countdown to ${countdownLabel}: ${countdown.days} days ${countdown.hours} hours ${countdown.minutes} minutes and ${countdown.seconds} seconds remaining.`;
   setCountdownAnnouncement(message);
 }, [countdown, countdownLabel]);
+
+  useEffect(() => {
+    if (siteLoading) {
+      setProgressAnimated(false);
+      return;
+    }
+    const frame = requestAnimationFrame(() => setProgressAnimated(true));
+    return () => cancelAnimationFrame(frame);
+  }, [siteLoading, funding.committed, funding.target]);
 
   const fundingSummary = [
     { label: "Round type", value: funding.roundType },
@@ -289,18 +336,15 @@ useEffect(() => {
     },
     { label: "Min check", value: funding.minCheck },
   ];
-
-  const snapshotMetrics = [
-    { label: "Facilities", value: latestSnapshot.facilities },
-    { label: "Teams", value: latestSnapshot.teams },
-    {
-      label: "Players tracked",
-      value: latestSnapshot.players.toLocaleString(),
-    },
-    {
-      label: "Data points collected",
-      value: latestSnapshot.dataPoints.toLocaleString(),
-    },
+  const rawProgress =
+    funding.target > 0 ? (funding.committed / funding.target) * 100 : 0;
+  const fundingProgress = Math.min(Math.max(rawProgress, 0), 100);
+  const fundingProgressRounded = Math.round(fundingProgress);
+  const committedDisplay = `$${funding.committed.toLocaleString()}`;
+  const targetDisplay = `$${funding.target.toLocaleString()}`;
+  const ecosystemStats = [
+    { label: "Organizations", value: organizations },
+    { label: "Reports", value: reports },
   ];
 
   const handleLogout = async () => {
@@ -347,15 +391,6 @@ useEffect(() => {
       <nav className="sticky top-0 z-50 bg-[#0A0A0A]/90 backdrop-blur border-b border-[#262626]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-[#141414] border border-[#262626]">
-              <BaselineLogo size="w-7 h-7" />
-            </div>
-            <div className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold tracking-wide">
-                Baseline
-              </span>
-              <span className="text-xs text-[#a3a3a3]">Investor Pulse</span>
-            </div>
           </div>
           <div className="flex items-center gap-4 text-xs">
             <button
@@ -364,14 +399,8 @@ useEffect(() => {
             >
               Overview
             </button>
-            <button
-              onClick={() => scrollToSection("snapshot")}
-              className="hidden md:inline-flex hover:text-[#cb6b1e] transition-colors"
-            >
-              Snapshot
-            </button>
             <a
-              href="/updateschedule.html"
+              href="/update-schedule"
               className="hidden md:inline-flex hover:text-[#cb6b1e] transition-colors"
             >
               Update schedule
@@ -422,27 +451,51 @@ useEffect(() => {
 
         <section
           id="overview"
-          className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start"
+          className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center"
         >
           <div className="space-y-6">
             {siteLoading ? (
               <OverviewSkeleton />
             ) : (
               <>
-                <div className="inline-flex items-center px-3 py-1 rounded-full bg-[#141414] border border-[#262626] text-[10px] font-semibold uppercase tracking-[0.15em] text-[#cb6b1e]">
-                  {hero.kicker}
-                </div>
-                <div className="space-y-4 text-left">
-                  <div
-                    className="pitch-title space-y-4"
-                    dangerouslySetInnerHTML={{ __html: heroTitleHtml }}
-                  />
-                  <div
-                    className="text-sm md:text-base text-[#d4d4d4] leading-relaxed space-y-2"
-                    dangerouslySetInnerHTML={{ __html: heroTaglineHtml }}
-                  />
-                  <p className="text-xs text-[#d4d4d4]">{hero.descriptor}</p>
-                </div>
+                <header className="space-y-5">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 md:w-20 md:h-20 flex items-center justify-center rounded-2xl bg-[#121212] border border-[#262626]">
+                      <BaselineLogo size="w-12 h-12 md:w-16 md:h-16" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[11px] uppercase tracking-[0.2em] text-[#a3a3a3]">
+                        Baseline Analytics
+                      </span>
+                      <span className="text-xs text-[#737373]">
+                        Investor intelligence
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold leading-tight">
+                      {displayHeroSegments.map((segment, index) => (
+                        <span
+                          key={`${segment.text}-${index}`}
+                          className={segment.accent ? "text-[#cb6b1e]" : undefined}
+                        >
+                          {segment.text}
+                          {index < displayHeroSegments.length - 1 ? " " : ""}
+                        </span>
+                      ))}
+                    </h1>
+                    {heroMissionText && (
+                      <p className="text-lg sm:text-xl text-[#f6e1bd]/90">
+                        {heroMissionText}
+                      </p>
+                    )}
+                    {heroDescriptorText && (
+                      <p className="text-sm text-[#a3a3a3] leading-relaxed">
+                        {heroDescriptorText}
+                      </p>
+                    )}
+                  </div>
+                </header>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-[#141414] border border-[#262626] rounded-xl p-4">
                     <p className="text-[11px] text-[#a3a3a3] mb-1">
@@ -466,28 +519,18 @@ useEffect(() => {
                     </p>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                  {fundingSummary.map((item) => (
-                    <div
-                      key={item.label}
-                      className="bg-[#141414] border border-[#262626] rounded-xl p-4"
-                    >
-                      <p className="text-[10px] text-[#a3a3a3] mb-1">
-                        {item.label}
-                      </p>
-                      <p className="text-sm font-semibold">{item.value}</p>
-                    </div>
-                  ))}
-                </div>
               </>
             )}
           </div>
 
-          <div className="relative">
+          <div className="relative space-y-6">
             <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#cb6b1e]/20 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-[#141414] rounded-full blur-3xl pointer-events-none" />
 
-            <div className="relative bg-[#141414] border border-[#262626] rounded-2xl p-6 space-y-6 shadow-xl" aria-live="polite">
+            <div
+              className="relative bg-[#141414] border border-[#262626] rounded-2xl p-10 space-y-6 shadow-xl"
+              aria-live="polite"
+            >
               {deckLoading ? (
                 <CountdownSkeleton />
               ) : (
@@ -498,7 +541,7 @@ useEffect(() => {
                   <p className="text-[11px] text-[#a3a3a3] mb-4">
                     Pulls from the shared pitch deck milestone.
                   </p>
-                  <div className="flex justify-between items-center gap-4">
+                  <div className="flex justify-between items-center gap-6">
                     {[
                       { label: "Days", value: countdown.days },
                       { label: "Hours", value: countdown.hours },
@@ -507,9 +550,9 @@ useEffect(() => {
                     ].map((item) => (
                       <div
                         key={item.label}
-                        className="flex-1 bg-[#0f0f0f] border border-[#262626] rounded-lg py-3 text-center"
+                        className="flex-1 bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg py-8 text-center shadow-inner"
                       >
-                        <div className="text-2xl font-mono font-semibold">
+                        <div className="text-5xl md:text-6xl lg:text-7xl font-mono font-semibold text-[#cb6b1e]">
                           {String(item.value).padStart(2, "0")}
                         </div>
                         <div className="text-[10px] uppercase tracking-[0.16em] text-[#a3a3a3] mt-1">
@@ -542,55 +585,143 @@ useEffect(() => {
           </div>
         </section>
 
-        <section
-          id="snapshot"
-          className="bg-[#141414] border border-[#262626] rounded-2xl p-6 space-y-5"
-        >
+        {/* Funding Progress Bar - Full Width, FLASHY */}
+        <section className="w-full">
           {siteLoading ? (
-            <SnapshotSkeleton />
+            <SkeletonBlock className="h-40 w-full" />
           ) : (
-            <>
-              <div className="flex flex-col md:flex-row md:items-baseline md:justify-between gap-3">
+            <div className="bg-gradient-to-r from-[#141414] to-[#1a1a1a] border border-[#262626] rounded-2xl p-8">
+              <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-lg font-semibold">
-                    Latest investor snapshot
-                  </h2>
-                  <p className="text-xs text-[#a3a3a3] mt-1">
-                    {latestSnapshot.label} &middot; as of {latestSnapshot.asOf}
+                  <h3 className="text-sm uppercase tracking-wider text-[#a3a3a3] mb-1">
+                    Funding Progress
+                  </h3>
+                  <p className="text-2xl font-bold">
+                    <span className="text-[#cb6b1e]">{committedDisplay}</span>
+                    <span className="text-[#737373]"> / {targetDisplay}</span>
                   </p>
                 </div>
-                <span className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full border border-[#262626] bg-[#0f0f0f] text-[#a3a3a3]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" />
-                  Live internal view
-                </span>
+                <div className="text-right">
+                  <p className="text-4xl font-bold text-[#cb6b1e]">
+                    {fundingProgressRounded}%
+                  </p>
+                  <p className="text-xs text-[#a3a3a3]">of target reached</p>
+                </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                {snapshotMetrics.map((metric) => (
-                  <div
-                    key={metric.label}
-                    className="bg-[#0f0f0f] border border-[#262626] rounded-lg p-3"
-                  >
-                    <p className="text-[10px] text-[#a3a3a3] mb-1">
-                      {metric.label}
-                    </p>
-                    <p className="text-xl font-semibold">{metric.value}</p>
-                  </div>
-                ))}
+
+              <div
+                className="relative w-full bg-[#0f0f0f] rounded-full h-6 border border-[#262626] overflow-hidden"
+                role="progressbar"
+                aria-label="Funding progress"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={fundingProgressRounded}
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-[#cb6b1e]/20 to-transparent opacity-50" />
+                <div
+                  className="relative h-full bg-gradient-to-r from-[#cb6b1e] to-[#e37a2e] rounded-full transition-all duration-[2000ms] ease-out shadow-lg shadow-[#cb6b1e]/50"
+                  style={{ width: progressAnimated ? `${fundingProgress}%` : "0%" }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+                </div>
               </div>
-              <div className="space-y-2">
-                <p className="text-xs uppercase tracking-[0.16em] text-[#a3a3a3]">
-                  Highlights
-                </p>
-                <ul className="list-disc list-inside space-y-1 text-sm text-[#d4d4d4]">
-                  {latestSnapshot.highlights.map((item, idx) => (
-                    <li key={idx}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            </>
+
+              <p className="text-xs text-[#737373] mt-3">
+                {funding.closeDate} target close
+              </p>
+            </div>
           )}
         </section>
 
+        {/* MVP Snapshot */}
+        <section className="w-full">
+          <div className="relative overflow-hidden rounded-2xl border border-[#262626] bg-gradient-to-r from-[#111111] via-[#141414] to-[#191919] p-8">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-[#a3a3a3]">
+                  {mvpSnapshot.title || "MVP Snapshot"}
+                </p>
+                <p className="text-sm text-[#d4d4d4]">
+                  Tracking the last milestone shipped and the next target in the build.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="self-start rounded-full border border-[#262626] px-4 py-2 text-xs uppercase tracking-[0.2em] text-[#f6e1bd] hover:border-[#cb6b1e] hover:text-[#cb6b1e] disabled:opacity-70"
+                disabled
+              >
+                {mvpSnapshot.ctaLabel || "Update schedule"}
+              </button>
+            </div>
+            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+              {[mvpSnapshot.previous, mvpSnapshot.next].map((task, index) => (
+                <div
+                  key={`${task?.label || index}-${index}`}
+                  className="relative rounded-2xl border border-[#262626] bg-[#0b0b0b]/80 p-6 shadow-[0_0_30px_rgba(11,11,11,0.6)]"
+                >
+                  <p className="text-[11px] uppercase tracking-[0.3em] text-[#a3a3a3]">
+                    {(task?.label || (index === 0 ? "Previous task" : "Next task")).toUpperCase()}
+                  </p>
+                  <h3 className="mt-3 text-2xl font-semibold text-[#f6e1bd]">
+                    {task?.title || "To be announced"}
+                  </h3>
+                  <p className="mt-2 text-sm text-[#a3a3a3] leading-relaxed">
+                    {task?.description || "Stay tuned for the latest milestone details."}
+                  </p>
+                  <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#262626] px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-[#cb6b1e]">
+                    <span>{task?.statusLabel || (index === 0 ? "Completed" : "Target TBD")}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Ecosystem Card - Full Width, FLASHY */}
+        <section className="w-full">
+          {siteLoading ? (
+            <SkeletonBlock className="h-48 w-full" />
+          ) : (
+            <div className="bg-gradient-to-br from-[#141414] via-[#1a1a1a] to-[#141414] border border-[#262626] rounded-2xl p-8">
+              <h3 className="text-2xl font-bold mb-2">The Baseline Ecosystem</h3>
+              <p className="text-sm text-[#a3a3a3] mb-6">
+                Real-time metrics from our growing network
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="group relative bg-[#0f0f0f] border border-[#262626] rounded-xl p-6 transition-all duration-300 hover:scale-[1.02] hover:border-[#cb6b1e] hover:shadow-xl hover:shadow-[#cb6b1e]/20 cursor-default">
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#cb6b1e]/0 to-[#cb6b1e]/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="relative">
+                    <p className="text-5xl md:text-6xl font-bold text-white group-hover:text-[#cb6b1e] transition-colors duration-300">
+                      {organizations}
+                    </p>
+                    <p className="text-sm uppercase tracking-wider text-[#a3a3a3] mt-2 group-hover:text-white transition-colors duration-300">
+                      Organizations
+                    </p>
+                    <p className="text-xs text-[#737373] mt-1">
+                      Training facilities & academies
+                    </p>
+                  </div>
+                </div>
+
+                <div className="group relative bg-[#0f0f0f] border border-[#262626] rounded-xl p-6 transition-all duration-300 hover:scale-[1.02] hover:border-[#cb6b1e] hover:shadow-xl hover:shadow-[#cb6b1e]/20 cursor-default">
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#cb6b1e]/0 to-[#cb6b1e]/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="relative">
+                    <p className="text-5xl md:text-6xl font-bold text-white group-hover:text-[#cb6b1e] transition-colors duration-300">
+                      {reports}
+                    </p>
+                    <p className="text-sm uppercase tracking-wider text-[#a3a3a3] mt-2 group-hover:text-white transition-colors duration-300">
+                      Reports
+                    </p>
+                    <p className="text-xs text-[#737373] mt-1">
+                      Performance evaluations generated
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
         <footer className="pt-4 pb-10 text-[11px] text-[#d4d4d4] flex flex-col md:flex-row md:items-center md:justify-between gap-2 border-t border-[#262626]">
           <span>Baseline / Investor Pulse</span>
           <span>Built for private investor updates, not public marketing.</span>

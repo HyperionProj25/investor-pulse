@@ -39,6 +39,20 @@ export type InvestorPersona = {
   pin: string;
 };
 
+export type SnapshotTaskCard = {
+  label: string;
+  title: string;
+  description: string;
+  statusLabel: string;
+};
+
+export type MvpSnapshot = {
+  title: string;
+  ctaLabel: string;
+  previous: SnapshotTaskCard;
+  next: SnapshotTaskCard;
+};
+
 export type QuestionnairePrompt = {
   id: string;
   category: string;
@@ -63,6 +77,7 @@ export type QuestionnaireAnswers = {
   tractionNarrative: string;
   investors: InvestorPersona[];
   updatePrompts: QuestionnairePrompt[];
+  mvpSnapshot: MvpSnapshot;
 };
 
 const formatDisplayDate = (value: string) => {
@@ -116,6 +131,23 @@ export const QUESTIONNAIRE_PROMPTS: QuestionnairePrompt[] = [
     helper: "Refreshes the mission text + hero descriptor.",
   },
 ];
+
+export const DEFAULT_MVP_SNAPSHOT: MvpSnapshot = {
+  title: "MVP Snapshot",
+  ctaLabel: "Update schedule",
+  previous: {
+    label: "Previous task",
+    title: "Facility OS investor preview",
+    description: "Ran the full workflow end-to-end with the investor dashboard.",
+    statusLabel: "Completed Nov 30",
+  },
+  next: {
+    label: "Next task",
+    title: "Deploy facility beta",
+    description: "Instrument two additional training centers and publish shared analytics.",
+    statusLabel: "Target Jan 31",
+  },
+};
 
 export const BASELINE_UPDATE: QuestionnaireAnswers = {
   hero: {
@@ -271,6 +303,7 @@ export const BASELINE_UPDATE: QuestionnaireAnswers = {
     },
   ],
   updatePrompts: QUESTIONNAIRE_PROMPTS,
+  mvpSnapshot: DEFAULT_MVP_SNAPSHOT,
 };
 
 export const buildContentFromQuestionnaire = (answers: QuestionnaireAnswers) => {
@@ -290,6 +323,7 @@ export const buildContentFromQuestionnaire = (answers: QuestionnaireAnswers) => 
     tractionNarrative: answers.tractionNarrative,
     investors: answers.investors,
     questionnaire: answers.updatePrompts,
+    mvpSnapshot: answers.mvpSnapshot ?? DEFAULT_MVP_SNAPSHOT,
   };
 };
 
