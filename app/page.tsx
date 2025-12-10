@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import BaselineLogo from "../components/BaselineLogo";
 import AccessPortal from "../components/AccessPortal";
@@ -141,7 +141,7 @@ const CountdownSkeleton = () => (
   </div>
 );
 
-export default function Home() {
+function HomeContent() {
   const searchParams = useSearchParams();
   const investorSlugFromParams = searchParams.get("investor");
   const [content, setContent] = useState<DerivedContent>(EMPTY_CONTENT);
@@ -738,5 +738,17 @@ useEffect(() => {
         </footer>
       </main>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#020202] text-[#f6e1bd] flex items-center justify-center">
+        <p className="text-sm text-[#a3a3a3]">Loading...</p>
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   );
 }

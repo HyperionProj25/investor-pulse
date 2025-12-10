@@ -96,7 +96,7 @@ const extractMessage = (error: unknown): string | null => {
   return null;
 };
 
-export const getUserFriendlyError = (error: unknown, fallback = GENERAL_ERRORS.UNKNOWN) => {
+export const getUserFriendlyError = (error: unknown, fallback: string = GENERAL_ERRORS.UNKNOWN): string => {
   const normalized = extractMessage(error);
   if (!normalized) {
     return fallback;
