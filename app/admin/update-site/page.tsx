@@ -29,6 +29,22 @@ type FormData = {
     closeDate: string;
     useOfFunds: string;
   };
+  mvpSnapshot: {
+    title: string;
+    ctaLabel: string;
+    previous: {
+      label: string;
+      title: string;
+      description: string;
+      statusLabel: string;
+    };
+    next: {
+      label: string;
+      title: string;
+      description: string;
+      statusLabel: string;
+    };
+  };
 };
 
 const AdminUpdateSitePage = () => {
@@ -59,6 +75,22 @@ const AdminUpdateSitePage = () => {
       minCheck: "",
       closeDate: "",
       useOfFunds: "",
+    },
+    mvpSnapshot: {
+      title: "",
+      ctaLabel: "",
+      previous: {
+        label: "",
+        title: "",
+        description: "",
+        statusLabel: "",
+      },
+      next: {
+        label: "",
+        title: "",
+        description: "",
+        statusLabel: "",
+      },
     },
   });
 
@@ -126,6 +158,22 @@ const AdminUpdateSitePage = () => {
               closeDate: p.funding?.closeDate || "",
               useOfFunds: p.funding?.useOfFunds || "",
             },
+            mvpSnapshot: {
+              title: p.mvpSnapshot?.title || "",
+              ctaLabel: p.mvpSnapshot?.ctaLabel || "",
+              previous: {
+                label: p.mvpSnapshot?.previous?.label || "",
+                title: p.mvpSnapshot?.previous?.title || "",
+                description: p.mvpSnapshot?.previous?.description || "",
+                statusLabel: p.mvpSnapshot?.previous?.statusLabel || "",
+              },
+              next: {
+                label: p.mvpSnapshot?.next?.label || "",
+                title: p.mvpSnapshot?.next?.title || "",
+                description: p.mvpSnapshot?.next?.description || "",
+                statusLabel: p.mvpSnapshot?.next?.statusLabel || "",
+              },
+            },
           });
         }
       } catch (err) {
@@ -174,6 +222,7 @@ const AdminUpdateSitePage = () => {
           closeDate: form.funding.closeDate,
           useOfFunds: form.funding.useOfFunds,
         },
+        mvpSnapshot: form.mvpSnapshot,
       };
 
       const response = await fetch("/api/admin/update", {
@@ -406,6 +455,125 @@ const AdminUpdateSitePage = () => {
                   placeholder="Product development & hiring"
                 />
               </label>
+            </div>
+
+            {/* MVP Snapshot */}
+            <div className="rounded-2xl border border-[#1f1f1f] bg-[#0b0b0b] p-6 space-y-4">
+              <div>
+                <h2 className="text-lg font-semibold">MVP Snapshot</h2>
+                <p className="text-xs text-[#737373]">Previous/Next task cards shown to investors</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-xs text-[#a3a3a3]">Section Title</span>
+                  <input
+                    className={inputClass}
+                    value={form.mvpSnapshot.title}
+                    onChange={(e) => updateField("mvpSnapshot", "title", e.target.value)}
+                    placeholder="e.g., Current Sprint"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs text-[#a3a3a3]">CTA Button Label</span>
+                  <input
+                    className={inputClass}
+                    value={form.mvpSnapshot.ctaLabel}
+                    onChange={(e) => updateField("mvpSnapshot", "ctaLabel", e.target.value)}
+                    placeholder="e.g., View Full Roadmap"
+                  />
+                </label>
+              </div>
+
+              <div className="border-t border-[#262626] pt-4">
+                <h3 className="text-sm font-semibold text-[#cb6b1e] mb-3">Previous Task Card</h3>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="block">
+                      <span className="text-xs text-[#a3a3a3]">Label</span>
+                      <input
+                        className={inputClass}
+                        value={form.mvpSnapshot.previous.label}
+                        onChange={(e) => setForm(prev => ({ ...prev, mvpSnapshot: { ...prev.mvpSnapshot, previous: { ...prev.mvpSnapshot.previous, label: e.target.value } } }))}
+                        placeholder="e.g., Just Shipped"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs text-[#a3a3a3]">Status Label</span>
+                      <input
+                        className={inputClass}
+                        value={form.mvpSnapshot.previous.statusLabel}
+                        onChange={(e) => setForm(prev => ({ ...prev, mvpSnapshot: { ...prev.mvpSnapshot, previous: { ...prev.mvpSnapshot.previous, statusLabel: e.target.value } } }))}
+                        placeholder="e.g., ✓ Complete"
+                      />
+                    </label>
+                  </div>
+                  <label className="block">
+                    <span className="text-xs text-[#a3a3a3]">Title</span>
+                    <input
+                      className={inputClass}
+                      value={form.mvpSnapshot.previous.title}
+                      onChange={(e) => setForm(prev => ({ ...prev, mvpSnapshot: { ...prev.mvpSnapshot, previous: { ...prev.mvpSnapshot.previous, title: e.target.value } } }))}
+                      placeholder="Task title"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs text-[#a3a3a3]">Description</span>
+                    <textarea
+                      rows={2}
+                      className={inputClass}
+                      value={form.mvpSnapshot.previous.description}
+                      onChange={(e) => setForm(prev => ({ ...prev, mvpSnapshot: { ...prev.mvpSnapshot, previous: { ...prev.mvpSnapshot.previous, description: e.target.value } } }))}
+                      placeholder="Brief description of what was completed"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="border-t border-[#262626] pt-4">
+                <h3 className="text-sm font-semibold text-[#cb6b1e] mb-3">Next Task Card</h3>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="block">
+                      <span className="text-xs text-[#a3a3a3]">Label</span>
+                      <input
+                        className={inputClass}
+                        value={form.mvpSnapshot.next.label}
+                        onChange={(e) => setForm(prev => ({ ...prev, mvpSnapshot: { ...prev.mvpSnapshot, next: { ...prev.mvpSnapshot.next, label: e.target.value } } }))}
+                        placeholder="e.g., Up Next"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs text-[#a3a3a3]">Status Label</span>
+                      <input
+                        className={inputClass}
+                        value={form.mvpSnapshot.next.statusLabel}
+                        onChange={(e) => setForm(prev => ({ ...prev, mvpSnapshot: { ...prev.mvpSnapshot, next: { ...prev.mvpSnapshot.next, statusLabel: e.target.value } } }))}
+                        placeholder="e.g., → In Progress"
+                      />
+                    </label>
+                  </div>
+                  <label className="block">
+                    <span className="text-xs text-[#a3a3a3]">Title</span>
+                    <input
+                      className={inputClass}
+                      value={form.mvpSnapshot.next.title}
+                      onChange={(e) => setForm(prev => ({ ...prev, mvpSnapshot: { ...prev.mvpSnapshot, next: { ...prev.mvpSnapshot.next, title: e.target.value } } }))}
+                      placeholder="Task title"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs text-[#a3a3a3]">Description</span>
+                    <textarea
+                      rows={2}
+                      className={inputClass}
+                      value={form.mvpSnapshot.next.description}
+                      onChange={(e) => setForm(prev => ({ ...prev, mvpSnapshot: { ...prev.mvpSnapshot, next: { ...prev.mvpSnapshot.next, description: e.target.value } } }))}
+                      placeholder="Brief description of what's coming next"
+                    />
+                  </label>
+                </div>
+              </div>
             </div>
           </div>
 
