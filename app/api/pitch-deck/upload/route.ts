@@ -122,12 +122,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: publicUrlData, error: urlError } = supabase.storage
+    const { data: publicUrlData } = supabase.storage
       .from(BUCKET_NAME)
       .getPublicUrl(objectName);
 
-    if (urlError || !publicUrlData?.publicUrl) {
-      console.error("Public URL generation failed:", urlError);
+    if (!publicUrlData?.publicUrl) {
+      console.error("Public URL generation failed: No URL returned");
       return NextResponse.json(
         { error: FILE_UPLOAD_ERRORS.PUBLIC_URL_FAILED },
         { status: 500 }
