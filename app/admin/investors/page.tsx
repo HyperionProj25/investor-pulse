@@ -234,7 +234,7 @@ const AdminInvestorsPage = () => {
 
         <button
           className="mt-6 rounded-lg border border-[#cb6b1e] px-4 py-2 text-sm hover:bg-[#cb6b1e] hover:text-black"
-          onClick={() => toast.info("Add investor (coming soon)")}
+          onClick={() => toast("Add investor (coming soon)")}
         >
           + Add New Investor
         </button>
