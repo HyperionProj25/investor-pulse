@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import BaselineLogo from "../components/BaselineLogo";
 import AccessPortal from "../components/AccessPortal";
@@ -12,8 +12,6 @@ import {
 import { PitchDeckContent } from "../lib/pitchDeck";
 import { DATABASE_ERRORS } from "../lib/errorMessages";
 import { toast } from "react-hot-toast";
-
-export const dynamic = 'force-dynamic';
 
 const EMPTY_ANSWERS: QuestionnaireAnswers = {
   hero: {
@@ -143,7 +141,7 @@ const CountdownSkeleton = () => (
   </div>
 );
 
-export default function Home() {
+function HomeContent() {
   const searchParams = useSearchParams();
   const investorSlugFromParams = searchParams.get("investor");
   const [content, setContent] = useState<DerivedContent>(EMPTY_CONTENT);
@@ -537,7 +535,7 @@ useEffect(() => {
                 <CountdownSkeleton />
               ) : (
                 <>
-                  <h2 className="text-sm font-semibold text-[#f6e1bd] mb-1">
+                  <h2 className="text-lg font-semibold text-[#f6e1bd] mb-1 text-center">
                     Countdown to {countdownLabel}
                   </h2>
                   <p className="text-[11px] text-[#a3a3a3] mb-4">
@@ -739,5 +737,13 @@ useEffect(() => {
         </footer>
       </main>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<OverviewSkeleton />}>
+      <HomeContent />
+    </Suspense>
   );
 }
