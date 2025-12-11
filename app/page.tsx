@@ -1,7 +1,9 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+
+export const dynamic = 'force-dynamic';
 import BaselineLogo from "../components/BaselineLogo";
 import AccessPortal from "../components/AccessPortal";
 import {
@@ -141,7 +143,7 @@ const CountdownSkeleton = () => (
   </div>
 );
 
-function HomeContent() {
+export default function Home() {
   const searchParams = useSearchParams();
   const investorSlugFromParams = searchParams.get("investor");
   const [content, setContent] = useState<DerivedContent>(EMPTY_CONTENT);
@@ -459,9 +461,9 @@ useEffect(() => {
             ) : (
               <>
                 <header className="space-y-5">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 md:w-20 md:h-20 flex items-center justify-center rounded-2xl bg-[#121212] border border-[#262626]">
-                      <BaselineLogo size="w-12 h-12 md:w-16 md:h-16" />
+                  <div className="flex items-center gap-6">
+                    <div className="w-32 h-32 md:w-40 md:h-40 flex items-center justify-center rounded-2xl bg-[#121212] border border-[#262626]">
+                      <BaselineLogo size="w-28 h-28 md:w-36 md:h-36" />
                     </div>
                     <div className="flex flex-col">
                       <span className="text-[11px] uppercase tracking-[0.2em] text-[#a3a3a3]">
@@ -738,17 +740,5 @@ useEffect(() => {
         </footer>
       </main>
     </div>
-  );
-}
-
-export default function Home() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#020202] text-[#f6e1bd] flex items-center justify-center">
-        <p className="text-sm text-[#a3a3a3]">Loading...</p>
-      </div>
-    }>
-      <HomeContent />
-    </Suspense>
   );
 }
