@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useId, type ReactNode } from "react";
-import { PitchDeckContent, PitchDeckSlide, sortSlides, moveSlide, generateSlideId } from "@/lib/pitchDeck";
+import { PitchDeckContent, PitchDeckSlide, SlideSize, sortSlides, moveSlide, generateSlideId } from "@/lib/pitchDeck";
 import { ADMIN_PERSONAS } from "@/lib/adminUsers";
 import { AUTH_ERRORS, DATABASE_ERRORS, FILE_UPLOAD_ERRORS, NETWORK_ERRORS, getUserFriendlyError } from "@/lib/errorMessages";
 import BaselineLogo from "@/components/BaselineLogo";
+import MasonryPitchDeck from "@/components/MasonryPitchDeck";
 import { formatPitchDeckText } from "@/lib/formatPitchDeckText";
 import { toast } from "react-hot-toast";
 
@@ -128,6 +129,29 @@ const DeckSkeleton = () => (
   </div>
 );
 
+const SLIDE_TEXT_SIZE_CLASSES: Record<NonNullable<PitchDeckSlide["textSize"]>, string> = {
+  small: "text-sm",
+  normal: "text-base",
+  large: "text-lg",
+  xl: "text-xl",
+};
+
+const SLIDE_TEXT_ALIGN_CLASSES: Record<NonNullable<PitchDeckSlide["textAlign"]>, string> = {
+  left: "text-left",
+  center: "text-center",
+  right: "text-right",
+};
+
+const getSlideTextClasses = (slide: PitchDeckSlide) => {
+  const sizeClass = SLIDE_TEXT_SIZE_CLASSES[slide.textSize || "normal"];
+  const alignClass = SLIDE_TEXT_ALIGN_CLASSES[slide.textAlign || "left"];
+  return `${sizeClass} ${alignClass}`;
+};
+
+const getSlideTextStyle = (slide: PitchDeckSlide) => ({
+  color: slide.textColor || "#f6e1bd",
+});
+
 export default function PitchDeckPage() {
   const [authenticated, setAuthenticated] = useState(false);
   const [sessionLoading, setSessionLoading] = useState(true);
@@ -144,6 +168,7 @@ export default function PitchDeckPage() {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
   const [previewMode, setPreviewMode] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<{ [key: string]: boolean }>({});
+  const [newSlideSize, setNewSlideSize] = useState<SlideSize>("medium");
   const [countdownAnnouncement, setCountdownAnnouncement] = useState("");
   const [contentLiveMessage, setContentLiveMessage] = useState("");
   const adminButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -432,6 +457,7 @@ export default function PitchDeckPage() {
       id: generateSlideId(),
       type,
       order: formState.slides.length,
+      size: newSlideSize || "medium",
       textContent: type === "text" ? "# New Slide\n\nAdd your content here..." : undefined,
       textPosition: type === "text" ? "full" : undefined,
       videoAutoplay: type === "video" ? true : undefined,
@@ -703,6 +729,9 @@ export default function PitchDeckPage() {
   const sortedSlides = sortSlides(content.slides);
   const displaySlides = editMode && formState ? sortSlides(formState.slides) : sortedSlides;
   const currentDisplayMode = editMode && formState ? formState.displayMode : content.displayMode;
+  const handleDisplayModeSwitch = (mode: PitchDeckContent["displayMode"]) => {
+    setContent((prev) => (prev ? { ...prev, displayMode: mode } : prev));
+  };
   const resolvedTagline =
     ((editMode && formState ? formState.tagline : content.tagline) ?? "").trim() ||
     "Data **Redefined.**";
@@ -1016,7 +1045,7 @@ export default function PitchDeckPage() {
           <div className="mb-8 flex justify-center">
             <div className="bg-white/5 backdrop-blur-xl border border-white/20 rounded-lg p-1 inline-flex">
               <button
-                onClick={() => setContent({ ...content, displayMode: "vertical" })}
+                onClick={() => handleDisplayModeSwitch("vertical")}
                 className={`px-4 py-2 rounded-lg text-sm transition-colors ${
                   currentDisplayMode === "vertical"
                     ? "bg-[#cb6b1e] text-white"
@@ -1026,7 +1055,7 @@ export default function PitchDeckPage() {
                 Scroll View
               </button>
               <button
-                onClick={() => setContent({ ...content, displayMode: "carousel" })}
+                onClick={() => handleDisplayModeSwitch("carousel")}
                 className={`px-4 py-2 rounded-lg text-sm transition-colors ${
                   currentDisplayMode === "carousel"
                     ? "bg-[#cb6b1e] text-white"
@@ -1034,6 +1063,16 @@ export default function PitchDeckPage() {
                 }`}
               >
                 Slideshow
+              </button>
+              <button
+                onClick={() => handleDisplayModeSwitch("masonry")}
+                className={`px-4 py-2 rounded-lg text-sm transition-colors ${
+                  currentDisplayMode === "masonry"
+                    ? "bg-[#cb6b1e] text-white"
+                    : "text-[#a3a3a3] hover:text-[#f6e1bd]"
+                }`}
+              >
+                Bento Grid
               </button>
             </div>
           </div>
@@ -1048,7 +1087,7 @@ export default function PitchDeckPage() {
                 onClick={() => handleAddSlide("text")}
                 className="px-4 py-2 bg-[#cb6b1e] hover:bg-[#e37a2e] text-white rounded-lg text-sm"
               >
-                + Text Slide
+                + Text Box
               </button>
               <button
                 onClick={() => handleAddSlide("pdf")}
@@ -1065,23 +1104,53 @@ export default function PitchDeckPage() {
             </div>
 
             {/* Mode selector in edit mode */}
-            <div className="mt-4 pt-4 border-t border-white/10">
-              <label className="block text-sm text-[#a3a3a3] mb-2">Display Mode</label>
-              <select
-                value={formState?.displayMode || "vertical"}
-                onChange={(e) =>
-                  setFormState({
-                    ...formState!,
-                    displayMode: e.target.value as "vertical" | "carousel",
-                  })
-                }
-                className="px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#f6e1bd] focus:outline-none focus:border-[#cb6b1e]"
-              >
-                <option value="vertical">Vertical Scroll</option>
-                <option value="carousel">Carousel/Slideshow</option>
-              </select>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="block text-sm text-[#a3a3a3] mb-2">Default Size for New Slides</label>
+                <select
+                  value={newSlideSize}
+                  onChange={(e) => setNewSlideSize(e.target.value as SlideSize)}
+                  className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#f6e1bd] focus:outline-none focus:border-[#cb6b1e]"
+                >
+                  <option value="small">Small (1x1)</option>
+                  <option value="medium">Medium (2x2)</option>
+                  <option value="large">Large (2x3)</option>
+                  <option value="wide">Wide (3x2)</option>
+                  <option value="full">Full Width</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-[#a3a3a3] mb-2">Display Mode</label>
+                <select
+                  value={formState?.displayMode || "masonry"}
+                  onChange={(e) => {
+                    if (!formState) return;
+                    setFormState({
+                      ...formState,
+                      displayMode: e.target.value as PitchDeckContent["displayMode"],
+                    });
+                  }}
+                  className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#f6e1bd] focus:outline-none focus:border-[#cb6b1e]"
+                >
+                  <option value="vertical">Vertical Scroll</option>
+                  <option value="carousel">Carousel/Slideshow</option>
+                  <option value="masonry">Bento Grid</option>
+                </select>
+              </div>
             </div>
           </div>
+        )}
+
+        {currentDisplayMode === "masonry" && (
+          <MasonryPitchDeck
+            slides={displaySlides}
+            editMode={editMode && !previewMode}
+            uploadingFiles={uploadingFiles}
+            onUpdateSlide={handleUpdateSlide}
+            onDeleteSlide={handleDeleteSlide}
+            onMoveSlide={handleMoveSlide}
+            onUploadAsset={handleFileUpload}
+          />
         )}
 
         {/* Slides Display (Vertical Scroll Mode) */}
@@ -1141,7 +1210,8 @@ export default function PitchDeckPage() {
                     ) : (
                       <div className="prose prose-invert max-w-none">
                         <div
-                          className="text-[#f6e1bd] leading-relaxed"
+                          className={`${getSlideTextClasses(slide)} leading-relaxed`}
+                          style={getSlideTextStyle(slide)}
                           dangerouslySetInnerHTML={{
                             __html: formatPitchDeckText(slide.textContent || ""),
                           }}
@@ -1311,7 +1381,8 @@ export default function PitchDeckPage() {
                         ) : (
                           <div className="prose prose-invert max-w-none text-lg">
                             <div
-                              className="text-[#f6e1bd] leading-relaxed"
+                              className={`${getSlideTextClasses(slide)} leading-relaxed`}
+                              style={getSlideTextStyle(slide)}
                               dangerouslySetInnerHTML={{
                                 __html: formatPitchDeckText(slide.textContent || ""),
                               }}

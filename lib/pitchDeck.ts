@@ -2,12 +2,15 @@
 
 export type SlideType = 'pdf' | 'text' | 'video';
 
+export type SlideSize = 'small' | 'medium' | 'large' | 'wide' | 'full';
+
 export type VideoSource = 'youtube' | 'upload';
 
 export type PitchDeckSlide = {
   id: string;
   type: SlideType;
   order: number;
+  size?: SlideSize;
 
   // PDF slide properties
   pdfUrl?: string;
@@ -16,6 +19,9 @@ export type PitchDeckSlide = {
   // Text content properties (for text slides or side-by-side content)
   textContent?: string;
   textPosition?: 'left' | 'right' | 'full'; // Position relative to slide
+  textAlign?: 'left' | 'center' | 'right';
+  textColor?: string;
+  textSize?: 'small' | 'normal' | 'large' | 'xl';
 
   // Video properties
   videoSource?: VideoSource;
@@ -34,7 +40,7 @@ export type CountdownConfig = {
 export type PitchDeckContent = {
   title: string;
   tagline?: string;
-  displayMode: 'vertical' | 'carousel'; // Scroll mode
+  displayMode: 'vertical' | 'carousel' | 'masonry'; // Scroll mode
   countdown: CountdownConfig;
   slides: PitchDeckSlide[];
 };
@@ -43,7 +49,7 @@ export type PitchDeckContent = {
 export const DEFAULT_PITCH_DECK: PitchDeckContent = {
   title: "# Baseline Analytics",
   tagline: "Data **Redefined.**",
-  displayMode: "vertical",
+  displayMode: "masonry",
   countdown: {
     targetDate: "2026-03-01T00:00:00-08:00",
     label: "Launch milestone",
@@ -55,6 +61,7 @@ export const DEFAULT_PITCH_DECK: PitchDeckContent = {
       order: 0,
       textContent: "# Welcome to Baseline\n\nBuilding the performance data layer for baseball and softball.",
       textPosition: "full",
+      size: "medium",
     },
   ],
 };

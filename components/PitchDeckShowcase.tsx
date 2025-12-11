@@ -4,18 +4,43 @@ import { useMemo, useState } from "react";
 import { PitchDeckContent, PitchDeckSlide, sortSlides } from "@/lib/pitchDeck";
 import { formatPitchDeckText } from "@/lib/formatPitchDeckText";
 import { VALIDATION_ERRORS } from "@/lib/errorMessages";
+import MasonryPitchDeck from "./MasonryPitchDeck";
 
 type PitchDeckShowcaseProps = {
   content: PitchDeckContent | null;
   loading?: boolean;
 };
 
+const TEXT_SIZE_CLASSES: Record<
+  NonNullable<PitchDeckSlide["textSize"]>,
+  string
+> = {
+  small: "text-sm",
+  normal: "text-base",
+  large: "text-lg",
+  xl: "text-xl",
+};
+
+const ALIGNMENT_CLASSES: Record<
+  NonNullable<PitchDeckSlide["textAlign"]>,
+  string
+> = {
+  left: "text-left",
+  center: "text-center",
+  right: "text-right",
+};
+
 const SlideCard = ({ slide }: { slide: PitchDeckSlide }) => {
   if (slide.type === "text") {
+    const textSizeClass =
+      TEXT_SIZE_CLASSES[slide.textSize || "normal"];
+    const alignmentClass =
+      ALIGNMENT_CLASSES[slide.textAlign || "left"];
     return (
-      <div className="prose prose-invert max-w-none text-lg">
+      <div className="prose prose-invert max-w-none">
         <div
-          className="text-[#f6e1bd] leading-relaxed"
+          className={`${textSizeClass} ${alignmentClass} leading-relaxed text-[#f6e1bd]`}
+          style={{ color: slide.textColor || "#f6e1bd" }}
           dangerouslySetInnerHTML={{
             __html: formatPitchDeckText(slide.textContent || ""),
           }}
@@ -182,6 +207,14 @@ export const PitchDeckShowcase = ({
             />
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (content.displayMode === "masonry") {
+    return (
+      <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-xl shadow-2xl">
+        <MasonryPitchDeck slides={slides} />
       </div>
     );
   }
