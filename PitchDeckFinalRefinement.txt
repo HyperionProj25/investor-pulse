@@ -1,0 +1,234 @@
+# PITCH DECK FINAL REFINEMENT: EDITOR VISIBILITY & MEDIA CONTROL
+
+## OBJECTIVE
+Final polish of the MasonryPitchDeck component to fix usability issues.
+1.  **Text Visibility:** In Edit Mode, give text boxes a dark, opaque background so the user can clearly see what they are typing (currently it's too transparent).
+2.  **Video Fitting:** Force videos to "Fit" (Letterbox/Contain) by default so heads/text are never cut off.
+3.  **PDF Precision:** Add a "Page Number" input to PDF slides so the user can display a specific slide from an uploaded deck.
+4.  **Scaling Control:** Add a "Scale" dropdown (Fit vs. Fill) for both PDFs and Videos to give the user layout control.
+
+---
+
+## 1. DATA MODEL UPDATE
+
+### File: `lib/pitchDeck.ts`
+**Action:** Update `PitchDeckSlide` to include `mediaFit` and `pdfPage`.
+
+```typescript
+export type PitchDeckSlide = {
+  // ... keep existing fields ...
+  
+  // Media Control
+  mediaFit?: 'cover' | 'contain'; // 'cover' = Fill (Crop), 'contain' = Fit (Letterbox)
+  pdfPage?: number;               // Specific page to display
+  
+  // ... keep other fields ...
+};
+2. COMPONENT UPDATE
+File: components/MasonryPitchDeck.tsx
+Action: Update the TextBox component styling and replace the MediaContent component with the logic below.
+
+A. Update TextBox (Fix Editing Visibility)
+Find the TextBox component. Update the textarea className logic.
+
+Current Issue: Background is transparent or too subtle in edit mode.
+
+Fix: Apply bg-[#050505] border-white/20 shadow-xl when in editMode.
+
+TypeScript
+
+/* Inside TextBox component return statement */
+<textarea
+  ref={textareaRef}
+  value={slide.textContent || ""}
+  onChange={(e) => handleTextChange(e.target.value)}
+  /* UPDATED CLASSNAME BELOW */
+  className={`w-full resize-none focus:outline-none placeholder-white/20 ${textSizeClass} ${alignmentClass} 
+    ${editMode ? 'bg-[#050505] p-4 rounded-xl border border-white/20 shadow-2xl z-20 relative' : 'bg-transparent border-none'}`} 
+  style={{ color: slide.textColor || '#f6e1bd' }}
+  placeholder="Type here..."
+/>
+B. Replace MediaContent (Page Select & Video Fit)
+Replace the entire MediaContent function with this robust version:
+
+TypeScript
+
+const MediaContent = ({
+  slide,
+  editMode,
+  uploading,
+  onUpdateSlide,
+  onUploadAsset,
+}: ContentBoxProps) => {
+  
+  // Helper to construct PDF URL with specific page and view settings
+  const getPdfSrc = (url: string, page: number = 1, fit: 'contain' | 'cover' = 'cover') => {
+    if (!url) return "";
+    const separator = url.includes("#") ? "&" : "#";
+    // 'Fit' = Whole Page, 'FitH' = Fit Width (Fill)
+    const viewParam = fit === 'contain' ? 'view=Fit' : 'view=FitH'; 
+    return `${url}${separator}page=${page}&${viewParam}&toolbar=0&navpanes=0&scrollbar=0`;
+  };
+
+  // Default Videos to CONTAIN (Fit) to prevent cropping. Default PDFs to COVER (Fill).
+  const defaultFit = slide.type === 'video' ? 'contain' : 'cover';
+  const mediaFit = slide.mediaFit || defaultFit;
+  const pageNumber = slide.pdfPage || 1;
+
+  // --- PDF RENDERER ---
+  if (slide.type === "pdf") {
+    // 1. Empty State (Edit Mode)
+    if (editMode && !slide.pdfUrl) {
+      return (
+        <div className="flex flex-col gap-3 p-6 items-center justify-center text-center h-full w-full bg-black/40">
+          <div className="text-[#cb6b1e] mb-2">📄 PDF Slide</div>
+          <input
+            type="text"
+            value={slide.pdfUrl || ""}
+            onChange={(e) => onUpdateSlide?.(slide.id, { pdfUrl: e.target.value })}
+            placeholder="Paste PDF URL"
+            className="w-full max-w-[200px] rounded-lg bg-black/30 border border-white/20 px-3 py-2 text-xs text-[#f6e1bd] focus:border-[#cb6b1e] focus:outline-none"
+          />
+          <div className="text-[10px] text-[#737373]">OR</div>
+          {onUploadAsset && (
+            <label className="cursor-pointer rounded-lg bg-white/10 px-4 py-2 text-xs font-medium text-[#f6e1bd] hover:bg-white/20 transition-colors">
+              {uploading ? "Uploading..." : "Upload PDF"}
+              <input
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                disabled={uploading}
+                onChange={(e) => e.target.files?.[0] && onUploadAsset(slide.id, e.target.files[0], "pdf")}
+              />
+            </label>
+          )}
+        </div>
+      );
+    }
+
+    // 2. View Mode (The Content)
+    return (
+      <div className="w-full h-full relative bg-[#111] group/pdf overflow-hidden">
+        {slide.pdfUrl ? (
+          <>
+            <iframe
+              src={getPdfSrc(slide.pdfUrl, pageNumber, mediaFit)}
+              className="absolute inset-0 w-full h-full"
+              title={slide.pdfFileName || "PDF Slide"}
+              style={{ border: "none", pointerEvents: editMode ? "none" : "auto" }}
+            />
+            
+            {/* 3. Controls (Edit Mode Only - Top Left) */}
+            {editMode && (
+              <div className="absolute top-2 left-2 z-20 flex flex-col gap-2 opacity-0 group-hover/pdf:opacity-100 transition-opacity">
+                {/* Page Select */}
+                <div className="flex items-center gap-2 bg-black/90 backdrop-blur-md rounded-lg border border-white/20 px-3 py-1.5 shadow-xl">
+                  <span className="text-[10px] text-[#a3a3a3] uppercase font-bold tracking-wider">Page</span>
+                  <input 
+                    type="number" 
+                    min="1" 
+                    value={pageNumber}
+                    onChange={(e) => onUpdateSlide?.(slide.id, { pdfPage: parseInt(e.target.value) || 1 })}
+                    className="w-12 bg-white/10 rounded px-1 py-0.5 text-xs text-center text-[#f6e1bd] focus:outline-none focus:bg-white/20"
+                  />
+                </div>
+                {/* Scale Select */}
+                <div className="flex items-center gap-2 bg-black/90 backdrop-blur-md rounded-lg border border-white/20 px-3 py-1.5 shadow-xl">
+                  <span className="text-[10px] text-[#a3a3a3] uppercase font-bold tracking-wider">View</span>
+                  <select 
+                    value={mediaFit}
+                    onChange={(e) => onUpdateSlide?.(slide.id, { mediaFit: e.target.value as 'cover' | 'contain' })}
+                    className="bg-white/10 rounded px-1 py-0.5 text-xs text-[#f6e1bd] focus:outline-none focus:bg-white/20"
+                  >
+                    <option value="cover">Fill (Crop)</option>
+                    <option value="contain">Fit (Whole)</option>
+                  </select>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-[#a3a3a3] text-sm bg-white/5">PDF Pending</div>
+        )}
+      </div>
+    );
+  }
+
+  // --- VIDEO RENDERER ---
+  if (slide.type === "video") {
+    // 1. Empty State
+    if (editMode && !slide.videoUrl) {
+      return (
+        <div className="flex flex-col gap-3 p-6 items-center justify-center text-center h-full w-full bg-black/40">
+          <div className="text-[#cb6b1e] mb-2">🎥 Video Slide</div>
+          <input
+            type="text"
+            value={slide.videoUrl || ""}
+            onChange={(e) => onUpdateSlide?.(slide.id, { videoUrl: e.target.value, videoSource: 'youtube' })}
+            placeholder="YouTube URL"
+            className="w-full max-w-[200px] rounded-lg bg-black/30 border border-white/20 px-3 py-2 text-xs text-[#f6e1bd] focus:border-[#cb6b1e] focus:outline-none"
+          />
+          <div className="text-[10px] text-[#737373]">OR</div>
+          {onUploadAsset && (
+            <label className="cursor-pointer rounded-lg bg-white/10 px-4 py-2 text-xs font-medium text-[#f6e1bd] hover:bg-white/20 transition-colors">
+              {uploading ? "Uploading..." : "Upload Video"}
+              <input
+                type="file"
+                accept="video/*"
+                className="hidden"
+                disabled={uploading}
+                onChange={(e) => e.target.files?.[0] && onUploadAsset(slide.id, e.target.files[0], "video")}
+              />
+            </label>
+          )}
+        </div>
+      );
+    }
+
+    const youtubeEmbed = slide.videoSource === 'youtube' ? getYouTubeEmbed(slide.videoUrl) : null;
+    
+    // 2. Video Content
+    return (
+      <div className="w-full h-full relative bg-black group/video">
+        {youtubeEmbed ? (
+          <iframe
+            src={youtubeEmbed}
+            className="absolute inset-0 w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        ) : slide.videoUrl ? (
+          <video
+            src={slide.videoUrl}
+            controls={!editMode} 
+            className="absolute inset-0 w-full h-full"
+            style={{ objectFit: mediaFit }} // Apply Fit/Fill logic
+            loop={slide.videoAutoplay}
+            autoPlay={slide.videoAutoplay}
+            muted={slide.videoAutoplay}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-[#a3a3a3] text-sm">Video Pending</div>
+        )}
+
+        {/* 3. Video Controls (Edit Mode Only - Top Left) */}
+        {editMode && slide.videoUrl && (
+          <div className="absolute top-2 left-2 z-20 opacity-0 group-hover/video:opacity-100 transition-opacity">
+            <div className="flex items-center gap-2 bg-black/90 backdrop-blur-md rounded-lg border border-white/20 px-3 py-1.5 shadow-xl">
+              <span className="text-[10px] text-[#a3a3a3] uppercase font-bold tracking-wider">Scale</span>
+              <select 
+                value={mediaFit}
+                onChange={(e) => onUpdateSlide?.(slide.id, { mediaFit: e.target.value as 'cover' | 'contain' })}
+                className="bg-white/10 rounded px-1 py-0.5 text-xs text-[#f6e1bd] focus:outline-none focus:bg-white/20"
+              >
+                <option value="contain">Fit (No Crop)</option>
+                <option value="cover">Fill (Crop)</option>
+              </select>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+  return null;
+};

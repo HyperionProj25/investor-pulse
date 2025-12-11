@@ -11,6 +11,7 @@ export type PitchDeckSlide = {
   type: SlideType;
   order: number;
   size?: SlideSize;
+  depth?: number;
 
   // PDF slide properties
   pdfUrl?: string;
@@ -22,6 +23,7 @@ export type PitchDeckSlide = {
   textAlign?: 'left' | 'center' | 'right';
   textColor?: string;
   textSize?: 'small' | 'normal' | 'large' | 'xl';
+  mediaFit?: 'cover' | 'contain';
 
   // Video properties
   videoSource?: VideoSource;
@@ -30,6 +32,7 @@ export type PitchDeckSlide = {
 
   // Display options
   showWithSlide?: boolean; // Whether text/video appears alongside slide or standalone
+  pdfPage?: number;
 };
 
 export type CountdownConfig = {

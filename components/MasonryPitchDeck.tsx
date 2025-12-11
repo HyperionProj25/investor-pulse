@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { formatPitchDeckText } from "@/lib/formatPitchDeckText";
 import {
   PitchDeckSlide,
@@ -52,61 +58,45 @@ const alignmentClasses: Record<
   right: "text-right",
 };
 
-const useIsMobile = () => {
-  const [isMobile, setIsMobile] = useState(
-    () =>
-      typeof window !== "undefined"
-        ? window.innerWidth < 768
-        : false
-  );
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  return isMobile;
+const sizeToResponsiveClass: Record<SlideSize, string> = {
+  small: "col-span-1 md:col-span-1 lg:col-span-1",
+  medium: "col-span-1 md:col-span-2 lg:col-span-2",
+  large: "col-span-1 md:col-span-2 lg:col-span-3",
+  wide: "col-span-1 md:col-span-3 lg:col-span-3",
+  full: "col-span-1 md:col-span-3 lg:col-span-4",
 };
 
-const getResponsiveClasses = (
-  slide: PitchDeckSlide,
-  index: number,
-  slides: PitchDeckSlide[],
-  isMobile: boolean
-) => {
-  const baseSize: SlideSize = slide.size || "medium";
-
-  if (isMobile) {
-    if (slide.type === "text") {
-      return "col-span-2";
-    }
-
-    if (baseSize === "small") {
-      const nextIsSmall = slides[index + 1]?.size === "small";
-      const prevIsSmall = slides[index - 1]?.size === "small";
-      return nextIsSmall || prevIsSmall ? "col-span-1" : "col-span-2";
-    }
-
-    if (baseSize === "full") {
-      return "col-span-2";
-    }
-
-    return "col-span-2";
+const getResponsiveClasses = (slide: PitchDeckSlide) => {
+  if (slide.type === "text") {
+    return "col-span-1 md:col-span-2 lg:col-span-2";
   }
+  const baseSize: SlideSize = slide.size || "medium";
+  return sizeToResponsiveClass[baseSize];
+};
 
-  const desktopSizeMap: Record<SlideSize, string> = {
-    small: "col-span-1 row-span-1",
-    medium: "col-span-2 row-span-2",
-    large: "col-span-2 row-span-3",
-    wide: "col-span-3 row-span-2",
-    full: "col-span-full row-span-2",
+const depthMap: Record<number, string> = {
+  0: "shadow-none",
+  1: "shadow-[0_4px_12px_rgba(0,0,0,0.15)]",
+  2: "shadow-[0_10px_25px_rgba(0,0,0,0.25)]",
+  3: "shadow-[0_18px_35px_rgba(0,0,0,0.35)]",
+  4: "shadow-[0_24px_45px_rgba(0,0,0,0.45)]",
+  5: "shadow-[0_30px_60px_rgba(0,0,0,0.55)]",
+};
+
+const getDepthStyles = (depth: number = 2) => {
+  return depthMap[depth] || depthMap[2];
+};
+
+const getDepthTransform = (depth: number = 2): CSSProperties => {
+  if (depth >= 4) {
+    return {
+      transform: `translateY(-${(depth - 3) * 2}px)`,
+      transition: "transform 0.3s ease",
+    };
+  }
+  return {
+    transition: "transform 0.3s ease",
   };
-
-  return desktopSizeMap[baseSize];
 };
 
 const getYouTubeEmbed = (url: string | undefined) => {
@@ -142,7 +132,6 @@ const MasonryPitchDeck = ({
     () => sortSlides(slides || []),
     [slides]
   );
-  const isMobile = useIsMobile();
 
   if (!orderedSlides.length) {
     return (
@@ -153,25 +142,12 @@ const MasonryPitchDeck = ({
   }
 
   return (
-    <div
-      className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 grid-flow-row-dense auto-rows-auto md:auto-rows-[200px] gap-3 md:gap-4 p-3 md:p-4"
-      style={
-        isMobile
-          ? { gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }
-          : undefined
-      }
-    >
-      {orderedSlides.map((slide, index) => {
-        const gridClasses = getResponsiveClasses(
-          slide,
-          index,
-          orderedSlides,
-          isMobile
-        );
-        const baseClasses =
-          slide.type === "text"
-            ? "bg-gradient-to-br from-white/10 to-white/0 border border-white/10"
-            : "bg-white/5 border border-white/20";
+    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 grid-flow-row-dense auto-rows-[minmax(220px,auto)] gap-4 md:gap-6 p-4 md:p-6">
+      {orderedSlides.map((slide) => {
+        const gridClasses = getResponsiveClasses(slide);
+        const isText = slide.type === "text";
+        const depthClass = !isText ? getDepthStyles(slide.depth || 2) : "";
+        const depthTransform = !isText ? getDepthTransform(slide.depth || 2) : undefined;
 
         return (
           <div
@@ -179,7 +155,12 @@ const MasonryPitchDeck = ({
             className={`${gridClasses} relative flex`}
           >
             <div
-              className={`group relative flex h-full w-full flex-col overflow-hidden rounded-2xl backdrop-blur-xl shadow-2xl transition-all hover:-translate-y-0.5 hover:border-[#cb6b1e]/40 ${baseClasses}`}
+              className={`group relative flex h-full w-full flex-col ${
+                isText
+                  ? ""
+                  : `rounded-2xl border border-white/10 bg-black/20 backdrop-blur-sm transition-all duration-300 hover:border-[#cb6b1e]/30 overflow-hidden ${depthClass}`
+              }`}
+              style={depthTransform}
             >
               <SlideActions
                 slideId={slide.id}
@@ -232,6 +213,31 @@ const MasonryPitchDeck = ({
                       )
                     )}
                   </select>
+                </div>
+              )}
+
+              {editMode && !isText && (
+                <div className="absolute top-4 left-1/2 z-30 -translate-x-1/2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 pointer-events-none">
+                  <div className="pointer-events-auto flex items-center gap-3 rounded-2xl border border-white/15 bg-black/85/90 px-4 py-2 shadow-lg backdrop-blur-sm">
+                    <label className="text-[10px] uppercase tracking-[0.35em] text-[#a3a3a3]">
+                      Depth
+                    </label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={5}
+                      value={slide.depth ?? 2}
+                      onChange={(e) =>
+                        onUpdateSlide?.(slide.id, {
+                          depth: Number.parseInt(e.target.value, 10),
+                        })
+                      }
+                      className="w-24 accent-[#cb6b1e]"
+                    />
+                    <span className="text-xs font-mono text-[#f6e1bd] w-8 text-right">
+                      {slide.depth ?? 2}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
@@ -371,9 +377,9 @@ const TextBox = ({
 
   if (!editMode) {
     return (
-      <div className="h-full w-full p-6">
+      <div className="w-full p-4 md:p-6">
         <div
-          className={`${textSizeClass} ${alignmentClass} text-[#f6e1bd] leading-relaxed`}
+          className={`${textSizeClass} ${alignmentClass} leading-relaxed text-[#f6e1bd]`}
           style={{ color: slide.textColor || "#f6e1bd" }}
           dangerouslySetInnerHTML={{
             __html: formatPitchDeckText(slide.textContent || ""),
@@ -384,8 +390,8 @@ const TextBox = ({
   }
 
   return (
-    <div className="flex h-full flex-col p-4">
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-white/5 p-2 text-sm text-[#f6e1bd]">
+    <div className="flex h-full flex-col gap-3 rounded-2xl border border-dashed border-[#cb6b1e]/30 bg-[#050505] p-4 text-[#f6e1bd] transition-all duration-200 hover:border-[#cb6b1e]/60">
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-black/60 p-2 text-sm">
         <button
           type="button"
           onClick={() => wrapSelection("**")}
@@ -486,8 +492,12 @@ const TextBox = ({
         ref={textareaRef}
         value={slide.textContent || ""}
         onChange={(e) => handleTextChange(e.target.value)}
-        className={`mt-3 flex-1 resize-none rounded-2xl border-2 border-dashed border-[#cb6b1e]/40 bg-black/20 px-4 py-3 font-mono text-sm text-[#f6e1bd] focus:outline-none focus:border-[#cb6b1e] ${textSizeClass} ${alignmentClass}`}
-        placeholder="Write your narrative... (# headers, **bold**, *italic*, markdown supported)"
+        className={`w-full min-h-[160px] flex-1 resize-none placeholder-white/20 font-mono text-sm text-[#f6e1bd] ${textSizeClass} ${alignmentClass} ${
+          editMode
+            ? "bg-[#050505] p-4 rounded-xl border border-white/20 shadow-2xl relative z-20 focus:border-[#cb6b1e]"
+            : "bg-transparent border-none"
+        } focus:outline-none`}
+        placeholder="Write your narrative... (# headers, **bold**, *italic*)"
       />
     </div>
   );
@@ -508,37 +518,45 @@ type ContentBoxProps = {
   ) => void;
 };
 
-const ContentBox = ({
+const MediaContent = ({
   slide,
   editMode,
   uploading,
   onUpdateSlide,
   onUploadAsset,
 }: ContentBoxProps) => {
+  const getPdfSrc = (
+    url: string,
+    page: number = 1,
+    fit: 'contain' | 'cover' = 'cover'
+  ) => {
+    if (!url) return "";
+    const separator = url.includes("#") ? "&" : "#";
+    const viewParam = fit === 'contain' ? 'view=Fit' : 'view=FitH';
+    return `${url}${separator}page=${page}&${viewParam}&toolbar=0&navpanes=0&scrollbar=0`;
+  };
+
+  const defaultFit = slide.type === "video" ? "contain" : "cover";
+  const mediaFit = slide.mediaFit || defaultFit;
+  const pageNumber = slide.pdfPage || 1;
+
   if (slide.type === "pdf") {
-    if (editMode) {
+    if (editMode && !slide.pdfUrl) {
       return (
-        <div className="flex h-full flex-col gap-3 p-4 text-[#f6e1bd]">
+        <div className="flex flex-col gap-3 p-6 items-center justify-center text-center h-full w-full bg-black/40">
+          <div className="text-[#cb6b1e] mb-2">PDF Slide</div>
           <input
             type="text"
             value={slide.pdfUrl || ""}
             onChange={(e) =>
               onUpdateSlide?.(slide.id, { pdfUrl: e.target.value })
             }
-            placeholder="PDF URL or embed link"
-            className="rounded-xl border border-white/20 bg-black/30 px-3 py-2 text-sm focus:outline-none focus:border-[#cb6b1e]"
+            placeholder="Paste PDF URL"
+            className="w-full max-w-[200px] rounded-lg bg-black/30 border border-white/20 px-3 py-2 text-xs text-[#f6e1bd] focus:border-[#cb6b1e] focus:outline-none"
           />
-          <input
-            type="text"
-            value={slide.pdfFileName || ""}
-            onChange={(e) =>
-              onUpdateSlide?.(slide.id, { pdfFileName: e.target.value })
-            }
-            placeholder="Display name"
-            className="rounded-xl border border-white/20 bg-black/30 px-3 py-2 text-sm focus:outline-none focus:border-[#cb6b1e]"
-          />
+          <div className="text-[10px] text-[#737373]">OR</div>
           {onUploadAsset && (
-            <label className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-[#cb6b1e] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#e37a2e]">
+            <label className="cursor-pointer rounded-lg bg-white/10 px-4 py-2 text-xs font-medium text-[#f6e1bd] hover:bg-white/20 transition-colors">
               {uploading ? "Uploading..." : "Upload PDF"}
               <input
                 type="file"
@@ -558,42 +576,79 @@ const ContentBox = ({
       );
     }
 
-    if (!slide.pdfUrl) {
-      return (
-        <div className="flex h-full items-center justify-center p-6 text-[#a3a3a3]">
-          PDF slide coming soon.
-        </div>
-      );
-    }
-
     return (
-      <div className="h-full w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow-2xl">
-        <iframe
-          src={slide.pdfUrl}
-          className="h-full w-full"
-          title={slide.pdfFileName || "PDF slide"}
-          style={{ border: "none", background: "transparent" }}
-        />
+      <div className="w-full h-full relative bg-[#111] group/pdf overflow-hidden">
+        {slide.pdfUrl ? (
+          <>
+            <iframe
+              src={getPdfSrc(slide.pdfUrl, pageNumber, mediaFit)}
+              className="absolute inset-0 w-full h-full"
+              title={slide.pdfFileName || "PDF Slide"}
+              style={{ border: "none", pointerEvents: editMode ? "none" : "auto" }}
+            />
+            {editMode && (
+              <div className="absolute top-2 left-2 z-20 flex flex-col gap-2 opacity-0 group-hover/pdf:opacity-100 transition-opacity">
+                <div className="flex items-center gap-2 bg-black/90 backdrop-blur-md rounded-lg border border-white/20 px-3 py-1.5 shadow-xl">
+                  <span className="text-[10px] text-[#a3a3a3] uppercase font-bold tracking-wider">Page</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={pageNumber}
+                    onChange={(e) =>
+                      onUpdateSlide?.(slide.id, {
+                        pdfPage: Number.parseInt(e.target.value, 10) || 1,
+                      })
+                    }
+                    className="w-12 bg-white/10 rounded px-1 py-0.5 text-xs text-center text-[#f6e1bd] focus:outline-none focus:bg-white/20"
+                  />
+                </div>
+                <div className="flex items-center gap-2 bg-black/90 backdrop-blur-md rounded-lg border border-white/20 px-3 py-1.5 shadow-xl">
+                  <span className="text-[10px] text-[#a3a3a3] uppercase font-bold tracking-wider">View</span>
+                  <select
+                    value={mediaFit}
+                    onChange={(e) =>
+                      onUpdateSlide?.(slide.id, {
+                        mediaFit: e.target.value as 'cover' | 'contain',
+                      })
+                    }
+                    className="bg-white/10 rounded px-1 py-0.5 text-xs text-[#f6e1bd] focus:outline-none focus:bg-white/20"
+                  >
+                    <option value="cover">Fill (Crop)</option>
+                    <option value="contain">Fit (Whole)</option>
+                  </select>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-[#a3a3a3] text-sm bg-white/5">
+            PDF Pending
+          </div>
+        )}
       </div>
     );
   }
 
   if (slide.type === "video") {
-    if (editMode) {
+    if (editMode && !slide.videoUrl) {
       return (
-        <div className="flex h-full flex-col gap-3 p-4 text-[#f6e1bd]">
+        <div className="flex flex-col gap-3 p-6 items-center justify-center text-center h-full w-full bg-black/40">
+          <div className="text-[#cb6b1e] mb-2">Video Slide</div>
           <input
             type="text"
             value={slide.videoUrl || ""}
             onChange={(e) =>
-              onUpdateSlide?.(slide.id, { videoUrl: e.target.value })
+              onUpdateSlide?.(slide.id, {
+                videoUrl: e.target.value,
+                videoSource: "youtube",
+              })
             }
-            placeholder="Video URL (auto-filled after upload)"
-            className="rounded-xl border border-white/20 bg-black/30 px-3 py-2 text-sm focus:outline-none focus:border-[#cb6b1e]"
-            readOnly={!slide.videoSource || slide.videoSource === "upload"}
+            placeholder="YouTube URL"
+            className="w-full max-w-[200px] rounded-lg bg-black/30 border border-white/20 px-3 py-2 text-xs text-[#f6e1bd] focus:border-[#cb6b1e] focus:outline-none"
           />
+          <div className="text-[10px] text-[#737373]">OR</div>
           {onUploadAsset && (
-            <label className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-[#cb6b1e] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#e37a2e]">
+            <label className="cursor-pointer rounded-lg bg-white/10 px-4 py-2 text-xs font-medium text-[#f6e1bd] hover:bg-white/20 transition-colors">
               {uploading ? "Uploading..." : "Upload Video"}
               <input
                 type="file"
@@ -613,53 +668,93 @@ const ContentBox = ({
       );
     }
 
-    if (!slide.videoUrl) {
-      return (
-        <div className="flex h-full items-center justify-center p-6 text-[#a3a3a3]">
-          Video slide coming soon.
-        </div>
-      );
-    }
+    const youtubeEmbed =
+      slide.videoSource === "youtube"
+        ? getYouTubeEmbed(slide.videoUrl)
+        : null;
 
-    if (slide.videoSource === "youtube") {
-      const embedUrl = getYouTubeEmbed(slide.videoUrl);
-      if (!embedUrl) {
-        return (
-          <div className="flex h-full items-center justify-center p-6 text-[#a3a3a3]">
-            Unable to load video.
-          </div>
-        );
-      }
-
-      return (
-        <div className="h-full w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow-2xl">
+    return (
+      <div className="w-full h-full relative bg-black group/video">
+        {youtubeEmbed ? (
           <iframe
-            src={embedUrl}
-            className="h-full w-full"
-            title="Pitch deck video"
+            src={youtubeEmbed}
+            className="absolute inset-0 w-full h-full"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
           />
-        </div>
-      );
-    }
+        ) : slide.videoUrl ? (
+          <video
+            src={slide.videoUrl}
+            controls={!editMode}
+            className="absolute inset-0 w-full h-full"
+            style={{ objectFit: mediaFit }}
+            loop={slide.videoAutoplay}
+            autoPlay={slide.videoAutoplay}
+            muted={slide.videoAutoplay}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-[#a3a3a3] text-sm">
+            Video Pending
+          </div>
+        )}
 
+        {editMode && slide.videoUrl && (
+          <div className="absolute top-2 left-2 z-20 opacity-0 group-hover/video:opacity-100 transition-opacity">
+            <div className="flex items-center gap-2 bg-black/90 backdrop-blur-md rounded-lg border border-white/20 px-3 py-1.5 shadow-xl">
+              <span className="text-[10px] text-[#a3a3a3] uppercase font-bold tracking-wider">Scale</span>
+              <select
+                value={mediaFit}
+                onChange={(e) =>
+                  onUpdateSlide?.(slide.id, {
+                    mediaFit: e.target.value as 'cover' | 'contain',
+                  })
+                }
+                className="bg-white/10 rounded px-1 py-0.5 text-xs text-[#f6e1bd] focus:outline-none focus:bg-white/20"
+              >
+                <option value="contain">Fit (No Crop)</option>
+                <option value="cover">Fill (Crop)</option>
+              </select>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+  return null;
+};
+const ContentBox = (props: ContentBoxProps) => {
+  const { slide, editMode } = props;
+  const hasText =
+    Boolean(slide.textContent) ||
+    (editMode &&
+      slide.textPosition &&
+      slide.textPosition !== "full");
+  const layout = slide.textPosition || "full";
+  const isSideBySide =
+    hasText && (layout === "left" || layout === "right");
+
+  if (isSideBySide) {
     return (
-      <div className="h-full w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow-2xl">
-        <video
-          src={slide.videoUrl}
-          controls
-          loop={slide.videoAutoplay}
-          autoPlay={slide.videoAutoplay}
-          muted={slide.videoAutoplay}
-          className="h-full w-full object-cover"
-          style={{ boxShadow: "inset 0 2px 4px rgba(0,0,0,0.3)" }}
-        />
+      <div
+        className={`flex h-full w-full flex-col md:flex-row ${
+          layout === "right" ? "md:flex-row-reverse" : ""
+        } overflow-hidden`}
+      >
+        <div className="flex-1 border-b border-white/5 md:border-b-0 md:border-r min-h-[220px] bg-transparent">
+          <TextBox
+            slide={slide}
+            editMode={editMode}
+            onUpdateSlide={props.onUpdateSlide}
+          />
+        </div>
+        <div className="flex-1 min-h-[220px] bg-black/20">
+          <MediaContent {...props} />
+        </div>
       </div>
     );
   }
 
-  return null;
+  return <MediaContent {...props} />;
 };
 
 export default MasonryPitchDeck;
