@@ -40,7 +40,7 @@ export type CountdownConfig = {
 export type PitchDeckContent = {
   title: string;
   tagline?: string;
-  displayMode: 'vertical' | 'carousel' | 'masonry'; // Scroll mode
+  displayMode: 'masonry'; // Fixed bento grid mode
   countdown: CountdownConfig;
   slides: PitchDeckSlide[];
 };

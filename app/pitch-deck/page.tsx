@@ -129,28 +129,12 @@ const DeckSkeleton = () => (
   </div>
 );
 
-const SLIDE_TEXT_SIZE_CLASSES: Record<NonNullable<PitchDeckSlide["textSize"]>, string> = {
-  small: "text-sm",
-  normal: "text-base",
-  large: "text-lg",
-  xl: "text-xl",
+const enforceMasonryMode = (
+  payload: PitchDeckContent | null
+): PitchDeckContent | null => {
+  if (!payload) return null;
+  return { ...payload, displayMode: "masonry" };
 };
-
-const SLIDE_TEXT_ALIGN_CLASSES: Record<NonNullable<PitchDeckSlide["textAlign"]>, string> = {
-  left: "text-left",
-  center: "text-center",
-  right: "text-right",
-};
-
-const getSlideTextClasses = (slide: PitchDeckSlide) => {
-  const sizeClass = SLIDE_TEXT_SIZE_CLASSES[slide.textSize || "normal"];
-  const alignClass = SLIDE_TEXT_ALIGN_CLASSES[slide.textAlign || "left"];
-  return `${sizeClass} ${alignClass}`;
-};
-
-const getSlideTextStyle = (slide: PitchDeckSlide) => ({
-  color: slide.textColor || "#f6e1bd",
-});
 
 export default function PitchDeckPage() {
   const [authenticated, setAuthenticated] = useState(false);
@@ -163,7 +147,6 @@ export default function PitchDeckPage() {
   const [adminPin, setAdminPin] = useState("");
   const [showAdminAuth, setShowAdminAuth] = useState(false);
   const [formState, setFormState] = useState<PitchDeckContent | null>(null);
-  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
   const [previewMode, setPreviewMode] = useState(false);
@@ -191,8 +174,9 @@ export default function PitchDeckPage() {
       }
       const data = await res.json();
       if (data.payload) {
-        setContent(data.payload);
-        setFormState(data.payload);
+        const normalized = enforceMasonryMode(data.payload);
+        setContent(normalized);
+        setFormState(normalized);
       } else {
         setContent(null);
         setFormState(null);
@@ -324,26 +308,6 @@ export default function PitchDeckPage() {
     void verifySession();
   }, [verifySession]);
 
-  // Keyboard navigation for carousel
-  useEffect(() => {
-    if (content?.displayMode !== "carousel" || !authenticated) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft") {
-        setCurrentSlideIndex((prev) =>
-          prev > 0 ? prev - 1 : (content?.slides.length || 1) - 1
-        );
-      } else if (e.key === "ArrowRight") {
-        setCurrentSlideIndex((prev) =>
-          prev < (content?.slides.length || 1) - 1 ? prev + 1 : 0
-        );
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [content, authenticated]);
-
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -389,6 +353,11 @@ export default function PitchDeckPage() {
   const handleSave = async () => {
     if (!formState) return;
 
+    const normalizedState: PitchDeckContent = {
+      ...formState,
+      displayMode: "masonry",
+    };
+
     setSaveStatus("saving");
 
     try {
@@ -396,14 +365,15 @@ export default function PitchDeckPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          payload: formState,
+          payload: normalizedState,
           author: "Admin",
           notes: "Pitch deck update",
         }),
       });
 
       if (res.ok) {
-        setContent(formState);
+        setContent(normalizedState);
+        setFormState(normalizedState);
         setSaveStatus("success");
         toast.success("Pitch deck updated.");
         setTimeout(() => setSaveStatus("idle"), 2000);
@@ -728,10 +698,6 @@ export default function PitchDeckPage() {
 
   const sortedSlides = sortSlides(content.slides);
   const displaySlides = editMode && formState ? sortSlides(formState.slides) : sortedSlides;
-  const currentDisplayMode = editMode && formState ? formState.displayMode : content.displayMode;
-  const handleDisplayModeSwitch = (mode: PitchDeckContent["displayMode"]) => {
-    setContent((prev) => (prev ? { ...prev, displayMode: mode } : prev));
-  };
   const resolvedTagline =
     ((editMode && formState ? formState.tagline : content.tagline) ?? "").trim() ||
     "Data **Redefined.**";
@@ -1040,44 +1006,6 @@ export default function PitchDeckPage() {
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4 py-12">
 
-        {/* Display Mode Toggle */}
-        {!editMode && (
-          <div className="mb-8 flex justify-center">
-            <div className="bg-white/5 backdrop-blur-xl border border-white/20 rounded-lg p-1 inline-flex">
-              <button
-                onClick={() => handleDisplayModeSwitch("vertical")}
-                className={`px-4 py-2 rounded-lg text-sm transition-colors ${
-                  currentDisplayMode === "vertical"
-                    ? "bg-[#cb6b1e] text-white"
-                    : "text-[#a3a3a3] hover:text-[#f6e1bd]"
-                }`}
-              >
-                Scroll View
-              </button>
-              <button
-                onClick={() => handleDisplayModeSwitch("carousel")}
-                className={`px-4 py-2 rounded-lg text-sm transition-colors ${
-                  currentDisplayMode === "carousel"
-                    ? "bg-[#cb6b1e] text-white"
-                    : "text-[#a3a3a3] hover:text-[#f6e1bd]"
-                }`}
-              >
-                Slideshow
-              </button>
-              <button
-                onClick={() => handleDisplayModeSwitch("masonry")}
-                className={`px-4 py-2 rounded-lg text-sm transition-colors ${
-                  currentDisplayMode === "masonry"
-                    ? "bg-[#cb6b1e] text-white"
-                    : "text-[#a3a3a3] hover:text-[#f6e1bd]"
-                }`}
-              >
-                Bento Grid
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Edit Mode Controls */}
         {editMode && !previewMode && (
           <div className="mb-8 bg-white/5 backdrop-blur-xl border border-white/20 rounded-xl p-6">
@@ -1103,45 +1031,24 @@ export default function PitchDeckPage() {
               </button>
             </div>
 
-            {/* Mode selector in edit mode */}
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="block text-sm text-[#a3a3a3] mb-2">Default Size for New Slides</label>
-                <select
-                  value={newSlideSize}
-                  onChange={(e) => setNewSlideSize(e.target.value as SlideSize)}
-                  className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#f6e1bd] focus:outline-none focus:border-[#cb6b1e]"
-                >
-                  <option value="small">Small (1x1)</option>
-                  <option value="medium">Medium (2x2)</option>
-                  <option value="large">Large (2x3)</option>
-                  <option value="wide">Wide (3x2)</option>
-                  <option value="full">Full Width</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm text-[#a3a3a3] mb-2">Display Mode</label>
-                <select
-                  value={formState?.displayMode || "masonry"}
-                  onChange={(e) => {
-                    if (!formState) return;
-                    setFormState({
-                      ...formState,
-                      displayMode: e.target.value as PitchDeckContent["displayMode"],
-                    });
-                  }}
-                  className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#f6e1bd] focus:outline-none focus:border-[#cb6b1e]"
-                >
-                  <option value="vertical">Vertical Scroll</option>
-                  <option value="carousel">Carousel/Slideshow</option>
-                  <option value="masonry">Bento Grid</option>
-                </select>
-              </div>
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <label className="block text-sm text-[#a3a3a3] mb-2">Default Size for New Slides</label>
+              <select
+                value={newSlideSize}
+                onChange={(e) => setNewSlideSize(e.target.value as SlideSize)}
+                className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#f6e1bd] focus:outline-none focus:border-[#cb6b1e]"
+              >
+                <option value="small">Small (1x1)</option>
+                <option value="medium">Medium (2x2)</option>
+                <option value="large">Large (2x3)</option>
+                <option value="wide">Wide (3x2)</option>
+                <option value="full">Full Width</option>
+              </select>
             </div>
           </div>
         )}
 
-        {currentDisplayMode === "masonry" && (
+        <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 to-white/0 backdrop-blur-2xl shadow-2xl">
           <MasonryPitchDeck
             slides={displaySlides}
             editMode={editMode && !previewMode}
@@ -1151,405 +1058,8 @@ export default function PitchDeckPage() {
             onMoveSlide={handleMoveSlide}
             onUploadAsset={handleFileUpload}
           />
-        )}
+        </div>
 
-        {/* Slides Display (Vertical Scroll Mode) */}
-        {currentDisplayMode === "vertical" && (
-          <div className="space-y-8">
-            {displaySlides.map((slide) => (
-              <div
-                key={slide.id}
-                className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-10"
-                style={{
-                  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 20px 60px rgba(0, 0, 0, 0.4)'
-                }}
-              >
-                {editMode && !previewMode && (
-                  <div className="flex justify-between items-center mb-4 pb-4 border-b border-white/10">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleMoveSlide(slide.id, "up")}
-                        className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-[#a3a3a3]"
-                        aria-label="Move slide up"
-                      >
-                        <span aria-hidden="true">↑</span>
-                        <span className="sr-only">Move this slide up</span>
-                      </button>
-                      <button
-                        onClick={() => handleMoveSlide(slide.id, "down")}
-                        className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-[#a3a3a3]"
-                        aria-label="Move slide down"
-                      >
-                        <span aria-hidden="true">↓</span>
-                        <span className="sr-only">Move this slide down</span>
-                      </button>
-                    </div>
-                    <button
-                      onClick={() => handleDeleteSlide(slide.id)}
-                      className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
-
-                {slide.type === "text" && (
-                  <div>
-                    {editMode && !previewMode ? (
-                      <div className="space-y-2">
-                        <textarea
-                          value={slide.textContent || ""}
-                          onChange={(e) =>
-                            handleUpdateSlide(slide.id, { textContent: e.target.value })
-                          }
-                          className="w-full h-48 px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-[#f6e1bd] focus:outline-none focus:border-[#cb6b1e] font-mono text-sm"
-                          placeholder="Slide content (markdown supported: # headers, **bold**, *italic*)"
-                        />
-                        <FormattingHelper compact />
-                      </div>
-                    ) : (
-                      <div className="prose prose-invert max-w-none">
-                        <div
-                          className={`${getSlideTextClasses(slide)} leading-relaxed`}
-                          style={getSlideTextStyle(slide)}
-                          dangerouslySetInnerHTML={{
-                            __html: formatPitchDeckText(slide.textContent || ""),
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {slide.type === "pdf" && (
-                  <div>
-                    {editMode && !previewMode ? (
-                      <div className="space-y-2">
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={slide.pdfUrl || ""}
-                            onChange={(e) => handleUpdateSlide(slide.id, { pdfUrl: e.target.value })}
-                            className="flex-1 px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#f6e1bd] focus:outline-none focus:border-[#cb6b1e] text-sm"
-                            placeholder="Google Slides: File → Publish to web → Embed (presentation mode, view-only)"
-                          />
-                          <label className="px-4 py-2 bg-[#cb6b1e] hover:bg-[#e37a2e] text-white rounded-lg cursor-pointer text-sm font-medium transition-colors whitespace-nowrap">
-                            {uploadingFiles[slide.id] ? "Uploading..." : "Upload PDF"}
-                            <input
-                              type="file"
-                              accept="application/pdf"
-                              className="hidden"
-                              disabled={uploadingFiles[slide.id]}
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) handleFileUpload(slide.id, file, "pdf");
-                              }}
-                            />
-                          </label>
-                        </div>
-                        <input
-                          type="text"
-                          value={slide.pdfFileName || ""}
-                          onChange={(e) =>
-                            handleUpdateSlide(slide.id, { pdfFileName: e.target.value })
-                          }
-                          className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#f6e1bd] focus:outline-none focus:border-[#cb6b1e] text-sm"
-                          placeholder="File name (optional)"
-                        />
-                      </div>
-                    ) : slide.pdfUrl ? (
-                      <div className="aspect-[16/9] bg-white/5 rounded-lg flex items-center justify-center">
-                        <iframe
-                          src={slide.pdfUrl}
-                          className="w-full h-full rounded-lg"
-                          title={slide.pdfFileName || "PDF"}
-                        />
-                      </div>
-                    ) : (
-                      <div className="text-[#a3a3a3] text-center py-8">No PDF uploaded</div>
-                    )}
-                  </div>
-                )}
-
-                {slide.type === "video" && (
-                  <div>
-                    {editMode && !previewMode ? (
-                      <div className="space-y-2">
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={slide.videoUrl || ""}
-                            onChange={(e) =>
-                              handleUpdateSlide(slide.id, { videoUrl: e.target.value })
-                            }
-                            className="flex-1 px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#f6e1bd] focus:outline-none focus:border-[#cb6b1e] text-sm"
-                            placeholder="Video URL (auto-filled after upload)"
-                            readOnly
-                          />
-                          <label className="px-4 py-2 bg-[#cb6b1e] hover:bg-[#e37a2e] text-white rounded-lg cursor-pointer text-sm font-medium transition-colors whitespace-nowrap">
-                            {uploadingFiles[slide.id] ? "Uploading..." : "Upload Video"}
-                            <input
-                              type="file"
-                              accept="video/*"
-                              className="hidden"
-                              disabled={uploadingFiles[slide.id]}
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) handleFileUpload(slide.id, file, "video");
-                              }}
-                            />
-                          </label>
-                        </div>
-                      </div>
-                    ) : slide.videoUrl ? (
-                      <div className="aspect-video bg-white/5 rounded-lg overflow-hidden">
-                        <video src={slide.videoUrl} controls className="w-full h-full" />
-                      </div>
-                    ) : (
-                      <div className="text-[#a3a3a3] text-center py-8">No video added</div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Carousel Mode */}
-        {currentDisplayMode === "carousel" && displaySlides.length > 0 && (
-          <div className="relative">
-            {/* Current Slide Display */}
-            <div
-              className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-10 min-h-[500px]"
-              style={{
-                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 20px 60px rgba(0, 0, 0, 0.4)'
-              }}
-            >
-                {editMode && !previewMode && (
-                  <div className="flex justify-between items-center mb-4 pb-4 border-b border-white/10">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() =>
-                          handleMoveSlide(displaySlides[currentSlideIndex].id, "up")
-                        }
-                        className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-[#a3a3a3]"
-                        aria-label="Move slide up"
-                      >
-                        <span aria-hidden="true">↑</span>
-                        <span className="sr-only">Move this slide up</span>
-                      </button>
-                      <button
-                        onClick={() =>
-                          handleMoveSlide(displaySlides[currentSlideIndex].id, "down")
-                        }
-                        className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-[#a3a3a3]"
-                        aria-label="Move slide down"
-                      >
-                        <span aria-hidden="true">↓</span>
-                        <span className="sr-only">Move this slide down</span>
-                      </button>
-                    </div>
-                  <button
-                    onClick={() => handleDeleteSlide(displaySlides[currentSlideIndex].id)}
-                    className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm"
-                  >
-                    Delete
-                  </button>
-                </div>
-              )}
-
-              {/* Render Current Slide */}
-              {(() => {
-                const slide = displaySlides[currentSlideIndex];
-
-                return (
-                  <>
-                    {slide.type === "text" && (
-                      <div>
-                        {editMode && !previewMode ? (
-                          <div className="space-y-2">
-                            <textarea
-                              value={slide.textContent || ""}
-                              onChange={(e) =>
-                                handleUpdateSlide(slide.id, { textContent: e.target.value })
-                              }
-                              className="w-full h-96 px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-[#f6e1bd] focus:outline-none focus:border-[#cb6b1e] font-mono text-sm"
-                              placeholder="Slide content (markdown supported: # headers, **bold**, *italic*)"
-                            />
-                            <FormattingHelper compact />
-                          </div>
-                        ) : (
-                          <div className="prose prose-invert max-w-none text-lg">
-                            <div
-                              className={`${getSlideTextClasses(slide)} leading-relaxed`}
-                              style={getSlideTextStyle(slide)}
-                              dangerouslySetInnerHTML={{
-                                __html: formatPitchDeckText(slide.textContent || ""),
-                              }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {slide.type === "pdf" && (
-                      <div>
-                        {editMode && !previewMode ? (
-                          <div className="space-y-2">
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                value={slide.pdfUrl || ""}
-                                onChange={(e) =>
-                                  handleUpdateSlide(slide.id, { pdfUrl: e.target.value })
-                                }
-                                className="flex-1 px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#f6e1bd] focus:outline-none focus:border-[#cb6b1e] text-sm"
-                                placeholder="Google Slides: File → Publish to web → Embed (presentation mode, view-only)"
-                              />
-                              <label className="px-4 py-2 bg-[#cb6b1e] hover:bg-[#e37a2e] text-white rounded-lg cursor-pointer text-sm font-medium transition-colors whitespace-nowrap">
-                                {uploadingFiles[slide.id] ? "Uploading..." : "Upload PDF"}
-                                <input
-                                  type="file"
-                                  accept="application/pdf"
-                                  className="hidden"
-                                  disabled={uploadingFiles[slide.id]}
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) handleFileUpload(slide.id, file, "pdf");
-                                  }}
-                                />
-                              </label>
-                            </div>
-                          </div>
-                        ) : slide.pdfUrl ? (
-                          <div className="aspect-[16/9] bg-white/5 rounded-lg">
-                            <iframe
-                              src={slide.pdfUrl}
-                              className="w-full h-full rounded-lg"
-                              title="PDF"
-                            />
-                          </div>
-                        ) : (
-                          <div className="text-[#a3a3a3] text-center py-16">No PDF</div>
-                        )}
-                      </div>
-                    )}
-
-                    {slide.type === "video" && (
-                      <div>
-                        {editMode && !previewMode ? (
-                          <div className="space-y-2">
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                value={slide.videoUrl || ""}
-                                onChange={(e) =>
-                                  handleUpdateSlide(slide.id, { videoUrl: e.target.value })
-                                }
-                                className="flex-1 px-4 py-2 bg-white/5 border border-white/20 rounded-lg text-[#f6e1bd] focus:outline-none focus:border-[#cb6b1e] text-sm"
-                                placeholder="Video URL (auto-filled after upload)"
-                                readOnly
-                              />
-                              <label className="px-4 py-2 bg-[#cb6b1e] hover:bg-[#e37a2e] text-white rounded-lg cursor-pointer text-sm font-medium transition-colors whitespace-nowrap">
-                                {uploadingFiles[slide.id] ? "Uploading..." : "Upload Video"}
-                                <input
-                                  type="file"
-                                  accept="video/*"
-                                  className="hidden"
-                                  disabled={uploadingFiles[slide.id]}
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) handleFileUpload(slide.id, file, "video");
-                                  }}
-                                />
-                              </label>
-                            </div>
-                          </div>
-                        ) : slide.videoUrl ? (
-                          <div className="aspect-video bg-white/5 rounded-lg overflow-hidden">
-                            <video src={slide.videoUrl} controls className="w-full h-full" />
-                          </div>
-                        ) : (
-                          <div className="text-[#a3a3a3] text-center py-16">No video</div>
-                        )}
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-
-            {/* Carousel Navigation */}
-            <div className="mt-6 flex items-center justify-center gap-4">
-              <button
-                onClick={() =>
-                  setCurrentSlideIndex((prev) =>
-                    prev > 0 ? prev - 1 : displaySlides.length - 1
-                  )
-                }
-                className="p-3 bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 rounded-lg text-[#f6e1bd] transition-colors"
-                disabled={displaySlides.length <= 1}
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 19l-7-7 7-7"
-                  />
-                </svg>
-              </button>
-
-              <div className="text-[#f6e1bd] font-mono">
-                {currentSlideIndex + 1} / {displaySlides.length}
-              </div>
-
-              <button
-                onClick={() =>
-                  setCurrentSlideIndex((prev) =>
-                    prev < displaySlides.length - 1 ? prev + 1 : 0
-                  )
-                }
-                className="p-3 bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 rounded-lg text-[#f6e1bd] transition-colors"
-                disabled={displaySlides.length <= 1}
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            {/* Slide Indicators */}
-            <div className="mt-4 flex justify-center gap-2">
-              {displaySlides.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setCurrentSlideIndex(idx)}
-                  className={`h-2 rounded-full transition-all ${
-                    idx === currentSlideIndex
-                      ? "w-8 bg-[#cb6b1e]"
-                      : "w-2 bg-white/20 hover:bg-white/40"
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
-        )}
       </div>
       </main>
     </DeckBackground>
