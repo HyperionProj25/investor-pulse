@@ -36,10 +36,10 @@ const BaselineLogo: React.FC<BaselineLogoProps> = ({ size = "w-32 h-32" }) => {
 
           {/* Top line - split into two segments with gap for BASELINE text */}
           {/* Left segment - from left corner to before B */}
-          <line x1="20" y1="20" x2="28" y2="20" stroke="#f6e1bd" strokeWidth="2" />
+          <line x1="20" y1="20" x2="26" y2="20" stroke="#f6e1bd" strokeWidth="2" />
 
           {/* Right segment - from after E to right corner */}
-          <line x1="72" y1="20" x2="80" y2="20" stroke="#f6e1bd" strokeWidth="2" />
+          <line x1="74" y1="20" x2="80" y2="20" stroke="#f6e1bd" strokeWidth="2" />
 
           {/* BASELINE text - centered in the gap */}
           <text
@@ -47,7 +47,7 @@ const BaselineLogo: React.FC<BaselineLogoProps> = ({ size = "w-32 h-32" }) => {
             y="20"
             textAnchor="middle"
             dominantBaseline="middle"
-            fontSize="11"
+            fontSize="9"
             fontWeight="bold"
             fill="#f6e1bd"
           >
