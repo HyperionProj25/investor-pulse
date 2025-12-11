@@ -8,6 +8,9 @@ export const metadata = {
     "Live roadmap for Baseline's investor update cadence and facility OS build.",
 };
 
+// Revalidate every request (no caching) - shows latest timeline changes immediately
+export const revalidate = 0;
+
 const radialStyle: CSSProperties = {
   backgroundImage:
     "radial-gradient(circle at 20% 20%, rgba(203,107,30,0.25), transparent 45%), radial-gradient(circle at 80% 0, rgba(79,158,219,0.2), transparent 55%)",

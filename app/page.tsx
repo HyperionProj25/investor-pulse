@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-
-export const dynamic = 'force-dynamic';
 import BaselineLogo from "../components/BaselineLogo";
 import AccessPortal from "../components/AccessPortal";
 import {
@@ -14,6 +12,8 @@ import {
 import { PitchDeckContent } from "../lib/pitchDeck";
 import { DATABASE_ERRORS } from "../lib/errorMessages";
 import { toast } from "react-hot-toast";
+
+export const dynamic = 'force-dynamic';
 
 const EMPTY_ANSWERS: QuestionnaireAnswers = {
   hero: {
@@ -310,7 +310,7 @@ useEffect(() => {
   }, [investorSlugFromParams]);
 
 const countdownLabel =
-  pitchDeck?.countdown?.label || metadata.milestoneLabel;
+  metadata.milestoneLabel || pitchDeck?.countdown?.label || "Launch";
 
 useEffect(() => {
   const message = `Countdown to ${countdownLabel}: ${countdown.days} days ${countdown.hours} hours ${countdown.minutes} minutes and ${countdown.seconds} seconds remaining.`;
@@ -541,7 +541,6 @@ useEffect(() => {
                     Countdown to {countdownLabel}
                   </h2>
                   <p className="text-[11px] text-[#a3a3a3] mb-4">
-                    Pulls from the shared pitch deck milestone.
                   </p>
                   <div className="flex justify-between items-center gap-6">
                     {[

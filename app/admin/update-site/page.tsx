@@ -368,12 +368,12 @@ const AdminUpdateSitePage = () => {
               </div>
 
               <label className="block">
-                <span className="text-xs text-[#a3a3a3]">Milestone Label (countdown title)</span>
+                <span className="text-xs text-[#a3a3a3]">Countdown Label</span>
                 <input
                   className={inputClass}
                   value={form.metadata.milestoneLabel}
                   onChange={(e) => updateField("metadata", "milestoneLabel", e.target.value)}
-                  placeholder="e.g., MVP Launch"
+                  placeholder="e.g., MVP Launch, Beta Release, Series A Close"
                 />
               </label>
 
