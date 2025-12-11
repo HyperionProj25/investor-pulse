@@ -32,3 +32,4 @@ For local parity you can run `netlify dev` (after installing `@netlify/cli`) to 
 | `npm run dev`  | Start the Next.js dev server     |
 | `npm run lint` | Run ESLint across the codebase   |
 | `npm run build`| Production build (used by Netlify) |
+# Environment variables configured
