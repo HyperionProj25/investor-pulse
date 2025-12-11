@@ -2,11 +2,41 @@ import { NextResponse } from "next/server";
 import { AUTH_ERRORS, DATABASE_ERRORS, VALIDATION_ERRORS } from "../../../../lib/errorMessages";
 import { getServiceSupabaseClient } from "../../../../lib/supabaseClient";
 import { ADMIN_PERSONAS, ADMIN_SLUGS } from "../../../../lib/adminUsers";
+import { SESSION_COOKIE, verifySessionToken } from "../../../../lib/session";
+import { cookies } from "next/headers";
 
 export async function POST(request: Request) {
   try {
+    // Verify session authentication first
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get(SESSION_COOKIE)?.value;
+
+    if (!sessionCookie) {
+      return NextResponse.json(
+        { error: AUTH_ERRORS.NOT_AUTHENTICATED },
+        { status: 401 }
+      );
+    }
+
+    const session = verifySessionToken(sessionCookie);
+
+    if (!session) {
+      return NextResponse.json(
+        { error: AUTH_ERRORS.SESSION_INVALID },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { adminSlug, payload, notes } = body ?? {};
+
+    // Verify the session belongs to an admin and matches the claimed adminSlug
+    if (session.role !== "admin" || session.slug !== adminSlug) {
+      return NextResponse.json(
+        { error: AUTH_ERRORS.ADMIN_ACCESS_REQUIRED },
+        { status: 403 }
+      );
+    }
 
     if (!adminSlug || !ADMIN_SLUGS.includes(adminSlug)) {
       return NextResponse.json(

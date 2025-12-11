@@ -8,9 +8,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const projectRoot = join(__dirname, '..');
 
-// Load environment variables
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://iujharfshajhpurjjcro.supabase.co';
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1amhhcmZzaGFqaHB1cmpqY3JvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDkxOTYwMywiZXhwIjoyMDgwNDk1NjAzfQ.C-KFsQBCB6rzAR5G-v_DDPKIWickMjFUsxA4fWU14tw';
+// Load environment variables - fail fast if missing
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!SUPABASE_URL || !SERVICE_KEY) {
+  console.error('❌ Missing required environment variables:');
+  if (!SUPABASE_URL) console.error('  - NEXT_PUBLIC_SUPABASE_URL');
+  if (!SERVICE_KEY) console.error('  - SUPABASE_SERVICE_ROLE_KEY');
+  console.error('\nPlease set these in your .env.local file');
+  process.exit(1);
+}
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 

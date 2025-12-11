@@ -11,6 +11,7 @@ import {
   verifySessionToken,
   type SessionRole,
 } from "@/lib/session";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 const supabase = getServiceSupabaseClient();
 
@@ -81,6 +82,31 @@ const validateRequestPayload = (payload: Partial<LoginPayload>) => {
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting: Allow 5 login attempts per 15 minutes per IP
+    const clientIp = getClientIp(request);
+    const rateLimit = checkRateLimit(clientIp, {
+      maxRequests: 5,
+      windowMs: 15 * 60 * 1000, // 15 minutes
+    });
+
+    if (!rateLimit.success) {
+      const resetIn = Math.ceil((rateLimit.resetAt - Date.now()) / 1000 / 60);
+      return NextResponse.json(
+        {
+          error: `Too many login attempts. Please try again in ${resetIn} minute${resetIn !== 1 ? "s" : ""}.`,
+        },
+        {
+          status: 429,
+          headers: {
+            "X-RateLimit-Limit": String(rateLimit.limit),
+            "X-RateLimit-Remaining": String(rateLimit.remaining),
+            "X-RateLimit-Reset": String(rateLimit.resetAt),
+            "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)),
+          },
+        }
+      );
+    }
+
     const body = (await request.json()) as Partial<LoginPayload>;
     const validationMessage = validateRequestPayload(body);
     if (validationMessage) {
