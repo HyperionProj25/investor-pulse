@@ -22,7 +22,9 @@
       "Bash(git push:*)",
       "Bash(node -e:*)",
       "Bash(npm run build:*)",
-      "Bash(timeout /t:*)"
+      "Bash(timeout /t:*)",
+      "Bash(npm install:*)",
+      "Bash(npm test:*)"
     ],
     "deny": [],
     "ask": []
