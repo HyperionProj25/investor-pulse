@@ -26,9 +26,9 @@ const BaselineLogo: React.FC<BaselineLogoProps> = ({ size = "w-32 h-32" }) => {
       <style>{animationStyles}</style>
       <div className={`${size} mx-auto relative`}>
         <svg viewBox="0 0 100 100" className="w-full h-full">
-          {/* Pentagon frame */}
+          {/* Pentagon frame (without top line - drawn separately with gap for text) */}
           <path
-            d="M20,20 L80,20 L80,50 L50,70 L20,50 Z"
+            d="M80,20 L80,50 L50,70 L20,50 L20,20"
             fill="none"
             stroke="#f6e1bd"
             strokeWidth="2"
