@@ -329,23 +329,41 @@ export default function PitchDeckPage() {
   }, [showAdminAuth]);
 
   // Handle admin authentication
-  const handleAdminAuth = (e: React.FormEvent) => {
+  const handleAdminAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setAdminAuthError(null);
 
-    const adminUser = ADMIN_PERSONAS.find(
-      (admin) => admin.pin === adminPin
-    );
+    try {
+      // Use API to verify admin PIN (works with environment variables)
+      const response = await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role: "admin",
+          pin: adminPin.trim(),
+        }),
+      });
 
-    if (adminUser) {
+      const data = await response.json();
+
+      if (!response.ok) {
+        const message = getUserFriendlyError(data?.error, AUTH_ERRORS.ADMIN_PIN_INVALID);
+        setAdminAuthError(message);
+        toast.error(message);
+        setAdminPin("");
+        return;
+      }
+
+      // Success - find the matching admin for display name
+      const adminUser = ADMIN_PERSONAS.find((admin) => admin.slug === data.slug);
       setEditMode(true);
       setShowAdminAuth(false);
       setAdminPin("");
-      toast.success(`Admin mode unlocked for ${adminUser.shortLabel}`);
-    } else {
-      setAdminAuthError(AUTH_ERRORS.ADMIN_PIN_INVALID);
-      toast.error(AUTH_ERRORS.ADMIN_PIN_INVALID);
-      setAdminPin("");
+      toast.success(`Admin mode unlocked for ${adminUser?.shortLabel || "Admin"}`);
+    } catch (error) {
+      console.error("Admin auth failed:", error);
+      setAdminAuthError(NETWORK_ERRORS.PIN_VERIFICATION_FAILED);
+      toast.error(NETWORK_ERRORS.PIN_VERIFICATION_FAILED);
     }
   };
 
