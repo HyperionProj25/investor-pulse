@@ -28,13 +28,8 @@ export function validateInvestorData(
     errors.push({ field: "name", message: "Name is required" });
   }
 
-  if (!investor.firm || investor.firm.trim() === "") {
-    errors.push({ field: "firm", message: "Firm is required" });
-  }
-
-  if (!investor.title || investor.title.trim() === "") {
-    errors.push({ field: "title", message: "Title is required" });
-  }
+  // Firm and title are now optional
+  // (removed validation for firm and title)
 
   if (!investor.focusArea || investor.focusArea.trim() === "") {
     errors.push({ field: "focusArea", message: "Focus area is required" });

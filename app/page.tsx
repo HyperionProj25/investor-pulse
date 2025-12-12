@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import BaselineLogo from "../components/BaselineLogo";
 import AccessPortal from "../components/AccessPortal";
+import DickheadCounter from "../components/DickheadCounter";
 import {
   buildContentFromQuestionnaire,
   type DerivedContent,
@@ -160,6 +161,10 @@ function HomeContent() {
   const [countdown, setCountdown] = useState<Countdown>(
     getTimeRemaining(EMPTY_LAUNCH_TARGET)
   );
+
+  // Dickhead Counter state
+  const [isDickheadCounterOpen, setIsDickheadCounterOpen] = useState(false);
+  const [hasReportedThisSession, setHasReportedThisSession] = useState(false);
 
   const { hero, metadata, funding, snapshots, investors, mvpSnapshot } = content;
   const lastUpdated = metadata.lastUpdatedDisplay;
@@ -386,6 +391,45 @@ useEffect(() => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const handleLogoClick = () => {
+    if (activeInvestor?.showDickheadCounter) {
+      setIsDickheadCounterOpen(true);
+    }
+  };
+
+  const handleSelfReport = async () => {
+    if (!activeInvestor || hasReportedThisSession) return;
+
+    try {
+      // Increment the count locally
+      const updatedCount = (activeInvestor.dickheadCount || 0) + 1;
+
+      // Update via API
+      const response = await fetch("/api/investor/self-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          investorSlug: activeInvestor.slug,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update count");
+      }
+
+      // Mark as reported this session
+      setHasReportedThisSession(true);
+
+      // Refresh the site content to get updated count
+      await fetchSiteContent();
+
+      toast.success("Count updated!");
+    } catch (error) {
+      console.error("Self-report failed:", error);
+      toast.error("Failed to update count");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#f6e1bd]">
       <nav className="sticky top-0 z-50 bg-[#0A0A0A]/90 backdrop-blur border-b border-[#262626]">
@@ -460,7 +504,14 @@ useEffect(() => {
               <>
                 <header className="space-y-5">
                   <div className="flex items-center gap-6">
-                    <div className="w-32 h-32 md:w-40 md:h-40 flex items-center justify-center rounded-2xl bg-[#121212] border border-[#262626]">
+                    <div
+                      className={`w-32 h-32 md:w-40 md:h-40 flex items-center justify-center rounded-2xl bg-[#121212] border border-[#262626] ${
+                        activeInvestor?.showDickheadCounter ? "cursor-pointer hover:border-[#cb6b1e] transition-colors" : ""
+                      }`}
+                      onClick={handleLogoClick}
+                      role={activeInvestor?.showDickheadCounter ? "button" : undefined}
+                      aria-label={activeInvestor?.showDickheadCounter ? "Open Dickhead Counter" : undefined}
+                    >
                       <BaselineLogo size="w-28 h-28 md:w-36 md:h-36" />
                     </div>
                     <div className="flex flex-col">
@@ -736,6 +787,18 @@ useEffect(() => {
           </span>
         </footer>
       </main>
+
+      {/* Dickhead Counter Modal */}
+      {activeInvestor && activeInvestor.showDickheadCounter && (
+        <DickheadCounter
+          isOpen={isDickheadCounterOpen}
+          onClose={() => setIsDickheadCounterOpen(false)}
+          currentInvestor={activeInvestor}
+          allInvestors={investors}
+          onSelfReport={handleSelfReport}
+          hasReportedThisSession={hasReportedThisSession}
+        />
+      )}
     </div>
   );
 }

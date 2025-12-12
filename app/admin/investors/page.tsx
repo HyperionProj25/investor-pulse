@@ -26,6 +26,7 @@ const AdminInvestorsPage = () => {
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [formData, setFormData] = useState<Partial<InvestorPersona>>({});
   const [showPin, setShowPin] = useState(false);
+  const [sessionStats, setSessionStats] = useState<Record<string, { lastLogin: string | null; totalVisits: number }>>({});
 
   const adminLabel = useMemo(() => {
     if (!authorizedAdmin) return null;
@@ -80,6 +81,21 @@ const AdminInvestorsPage = () => {
       }
     };
     if (authorizedAdmin) void loadInvestors();
+  }, [authorizedAdmin]);
+
+  useEffect(() => {
+    const loadSessionStats = async () => {
+      try {
+        const response = await fetch("/api/admin/session-stats");
+        if (!response.ok) throw new Error("Failed to load session stats");
+        const data = await response.json();
+        setSessionStats(data.stats || {});
+      } catch (err) {
+        console.error("Failed to load session stats:", err);
+        // Non-critical, don't show error toast
+      }
+    };
+    if (authorizedAdmin) void loadSessionStats();
   }, [authorizedAdmin]);
 
   // Helper functions
@@ -362,19 +378,21 @@ const AdminInvestorsPage = () => {
                       />
                     </label>
                     <label className="text-xs uppercase tracking-[0.2em] text-[#a3a3a3]">
-                      Firm *
+                      Company/Org (optional)
                       <input
                         className="mt-1 w-full rounded-lg border border-[#2a2a2a] bg-[#090909] px-3 py-2 text-sm text-[#f6e1bd]"
                         value={formData.firm || ""}
                         onChange={(e) => updateFormField("firm", e.target.value)}
+                        placeholder="e.g., Signal Loop Capital"
                       />
                     </label>
                     <label className="text-xs uppercase tracking-[0.2em] text-[#a3a3a3]">
-                      Title *
+                      Role/Title (optional)
                       <input
                         className="mt-1 w-full rounded-lg border border-[#2a2a2a] bg-[#090909] px-3 py-2 text-sm text-[#f6e1bd]"
                         value={formData.title || ""}
                         onChange={(e) => updateFormField("title", e.target.value)}
+                        placeholder="e.g., General Partner"
                       />
                     </label>
                   </div>
@@ -513,6 +531,34 @@ const AdminInvestorsPage = () => {
                   </label>
                 </div>
 
+                {/* Dickhead Counter */}
+                <div>
+                  <h4 className="text-sm font-semibold mb-3">Dickhead Counter (Easter Egg)</h4>
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-[#2a2a2a] bg-[#090909] text-[#cb6b1e]"
+                        checked={formData.showDickheadCounter || false}
+                        onChange={(e) => updateFormField("showDickheadCounter", e.target.checked)}
+                      />
+                      <span className="text-xs text-[#a3a3a3]">Enable Dickhead Counter for this investor</span>
+                    </label>
+                    {formData.showDickheadCounter && (
+                      <label className="text-xs uppercase tracking-[0.2em] text-[#a3a3a3]">
+                        Current Count
+                        <input
+                          type="number"
+                          min="0"
+                          className="mt-1 w-32 rounded-lg border border-[#2a2a2a] bg-[#090909] px-3 py-2 text-sm text-[#f6e1bd]"
+                          value={formData.dickheadCount || 0}
+                          onChange={(e) => updateFormField("dickheadCount", parseInt(e.target.value) || 0)}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+
                 <div className="flex gap-3 pt-4">
                   <button
                     onClick={saveNewInvestor}
@@ -566,19 +612,21 @@ const AdminInvestorsPage = () => {
                         />
                       </label>
                       <label className="text-xs uppercase tracking-[0.2em] text-[#a3a3a3]">
-                        Firm *
+                        Company/Org (optional)
                         <input
                           className="mt-1 w-full rounded-lg border border-[#2a2a2a] bg-[#090909] px-3 py-2 text-sm text-[#f6e1bd]"
                           value={formData.firm || ""}
                           onChange={(e) => updateFormField("firm", e.target.value)}
+                          placeholder="e.g., Signal Loop Capital"
                         />
                       </label>
                       <label className="text-xs uppercase tracking-[0.2em] text-[#a3a3a3]">
-                        Title *
+                        Role/Title (optional)
                         <input
                           className="mt-1 w-full rounded-lg border border-[#2a2a2a] bg-[#090909] px-3 py-2 text-sm text-[#f6e1bd]"
                           value={formData.title || ""}
                           onChange={(e) => updateFormField("title", e.target.value)}
+                          placeholder="e.g., General Partner"
                         />
                       </label>
                     </div>
@@ -717,6 +765,34 @@ const AdminInvestorsPage = () => {
                     </label>
                   </div>
 
+                  {/* Dickhead Counter */}
+                  <div>
+                    <h4 className="text-sm font-semibold mb-3">Dickhead Counter (Easter Egg)</h4>
+                    <div className="space-y-3">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-[#2a2a2a] bg-[#090909] text-[#cb6b1e]"
+                          checked={formData.showDickheadCounter || false}
+                          onChange={(e) => updateFormField("showDickheadCounter", e.target.checked)}
+                        />
+                        <span className="text-xs text-[#a3a3a3]">Enable Dickhead Counter for this investor</span>
+                      </label>
+                      {formData.showDickheadCounter && (
+                        <label className="text-xs uppercase tracking-[0.2em] text-[#a3a3a3]">
+                          Current Count
+                          <input
+                            type="number"
+                            min="0"
+                            className="mt-1 w-32 rounded-lg border border-[#2a2a2a] bg-[#090909] px-3 py-2 text-sm text-[#f6e1bd]"
+                            value={formData.dickheadCount || 0}
+                            onChange={(e) => updateFormField("dickheadCount", parseInt(e.target.value) || 0)}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="flex gap-3 pt-4">
                     <button
                       onClick={saveEdit}
@@ -750,6 +826,25 @@ const AdminInvestorsPage = () => {
                       <p className="mt-1 text-xs text-[#737373]">
                         {investor.welcomeNote}
                       </p>
+                    )}
+                    {/* Session Analytics */}
+                    {sessionStats[investor.slug] && (
+                      <div className="mt-3 flex gap-4 text-xs text-[#a3a3a3]">
+                        <span>
+                          Last login:{" "}
+                          <span className="text-[#f6e1bd]">
+                            {sessionStats[investor.slug].lastLogin
+                              ? new Date(sessionStats[investor.slug].lastLogin!).toLocaleDateString()
+                              : "Never"}
+                          </span>
+                        </span>
+                        <span>
+                          Total visits:{" "}
+                          <span className="text-[#cb6b1e] font-semibold">
+                            {sessionStats[investor.slug].totalVisits}
+                          </span>
+                        </span>
+                      </div>
                     )}
                   </div>
                   <div className="flex gap-2">

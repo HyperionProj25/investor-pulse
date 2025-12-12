@@ -34,7 +34,24 @@ const fetchInvestors = async (): Promise<InvestorPersona[]> => {
   return BASELINE_UPDATE.investors;
 };
 
-const issueSessionResponse = (slug: string, role: SessionRole) => {
+const trackInvestorSession = async (investorSlug: string) => {
+  try {
+    await supabase.from("investor_sessions").insert({
+      investor_slug: investorSlug,
+      login_timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Failed to track session:", error);
+    // Don't fail the login if session tracking fails
+  }
+};
+
+const issueSessionResponse = async (slug: string, role: SessionRole) => {
+  // Track investor sessions for analytics
+  if (role === "investor") {
+    await trackInvestorSession(slug);
+  }
+
   const token = createSessionToken(slug, role);
   const response = NextResponse.json({ slug, role });
   response.cookies.set(buildSessionCookie(token));
@@ -120,7 +137,7 @@ export async function POST(request: NextRequest) {
       if (!adminUser) {
         return NextResponse.json({ error: AUTH_ERRORS.ADMIN_PIN_INVALID }, { status: 401 });
       }
-      return issueSessionResponse(adminUser.slug, "admin");
+      return await issueSessionResponse(adminUser.slug, "admin");
     }
 
     const investors = await fetchInvestors();
@@ -137,7 +154,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      return issueSessionResponse(persona.slug, "deck");
+      return await issueSessionResponse(persona.slug, "deck");
     }
 
     // Investor flow
@@ -155,7 +172,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return issueSessionResponse(investor.slug, "investor");
+    return await issueSessionResponse(investor.slug, "investor");
   } catch (error) {
     console.error("Session POST failed:", error);
     return NextResponse.json(

@@ -27,8 +27,8 @@ export type FundingSnapshot = {
 export type InvestorPersona = {
   slug: string;
   name: string;
-  firm: string;
-  title: string;
+  firm?: string;
+  title?: string;
   focusArea: string;
   welcomeNote: string;
   highlight: string;
@@ -37,6 +37,9 @@ export type InvestorPersona = {
   pixelAccent: string;
   pixelMuted: string;
   pin: string;
+  // Dickhead Counter feature
+  showDickheadCounter?: boolean;
+  dickheadCount?: number;
 };
 
 export type SnapshotTaskCard = {
