@@ -437,18 +437,6 @@ useEffect(() => {
           <div className="flex items-center gap-3">
           </div>
           <div className="flex items-center gap-4 text-xs">
-            <button
-              onClick={() => scrollToSection("overview")}
-              className="hidden md:inline-flex hover:text-[#cb6b1e] transition-colors"
-            >
-              Overview
-            </button>
-            <a
-              href="/update-schedule"
-              className="hidden md:inline-flex hover:text-[#cb6b1e] transition-colors"
-            >
-              Update schedule
-            </a>
             <div className="hidden sm:flex items-center gap-2 text-[11px] text-[#a3a3a3]">
               <span>
                 Logged in as{" "}
@@ -695,13 +683,12 @@ useEffect(() => {
                   Tracking the last milestone shipped and the next target in the build.
                 </p>
               </div>
-              <button
-                type="button"
-                className="self-start rounded-full border border-[#262626] px-4 py-2 text-xs uppercase tracking-[0.2em] text-[#f6e1bd] hover:border-[#cb6b1e] hover:text-[#cb6b1e] disabled:opacity-70"
-                disabled
+              <a
+                href="/update-schedule"
+                className="self-start rounded-full border border-[#262626] px-4 py-2 text-xs uppercase tracking-[0.2em] text-[#f6e1bd] hover:border-[#cb6b1e] hover:text-[#cb6b1e] transition-colors"
               >
                 {mvpSnapshot.ctaLabel || "Update schedule"}
-              </button>
+              </a>
             </div>
             <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
               {[mvpSnapshot.previous, mvpSnapshot.next].map((task, index) => (
