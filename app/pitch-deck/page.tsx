@@ -2,12 +2,17 @@
 
 import { useState, useEffect, useCallback, useRef, useId, type ReactNode } from "react";
 import { PitchDeckContent, PitchDeckSlide, SlideSize, sortSlides, moveSlide, generateSlideId } from "@/lib/pitchDeck";
-import { ADMIN_PERSONAS } from "@/lib/adminUsers";
 import { AUTH_ERRORS, DATABASE_ERRORS, FILE_UPLOAD_ERRORS, NETWORK_ERRORS, getUserFriendlyError } from "@/lib/errorMessages";
 import BaselineLogo from "@/components/BaselineLogo";
 import MasonryPitchDeck from "@/components/MasonryPitchDeck";
 import { formatPitchDeckText } from "@/lib/formatPitchDeckText";
 import { toast } from "react-hot-toast";
+
+// Client-safe mapping for admin display names (no sensitive data)
+const ADMIN_LABELS: Record<string, string> = {
+  "chase-admin": "Chase",
+  "sheldon-admin": "Sheldon",
+};
 
 type FormattingHelperProps = {
   compact?: boolean;
@@ -354,12 +359,12 @@ export default function PitchDeckPage() {
         return;
       }
 
-      // Success - find the matching admin for display name
-      const adminUser = ADMIN_PERSONAS.find((admin) => admin.slug === data.slug);
+      // Success - get the admin display name from our client-safe mapping
+      const adminLabel = ADMIN_LABELS[data.slug] || "Admin";
       setEditMode(true);
       setShowAdminAuth(false);
       setAdminPin("");
-      toast.success(`Admin mode unlocked for ${adminUser?.shortLabel || "Admin"}`);
+      toast.success(`Admin mode unlocked for ${adminLabel}`);
     } catch (error) {
       console.error("Admin auth failed:", error);
       setAdminAuthError(NETWORK_ERRORS.PIN_VERIFICATION_FAILED);

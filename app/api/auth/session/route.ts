@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ADMIN_PERSONAS } from "@/lib/adminUsers";
+import { getAdminPersonasWithPins } from "@/lib/adminUsers";
 import { AUTH_ERRORS, NETWORK_ERRORS, VALIDATION_ERRORS } from "@/lib/errorMessages";
 import { BASELINE_UPDATE, type InvestorPersona } from "@/lib/questionnaire";
 import { getServiceSupabaseClient } from "@/lib/supabaseClient";
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
     const { role, slug, pin } = body as LoginPayload;
 
     if (role === "admin") {
-      const adminUser = ADMIN_PERSONAS.find((user) => user.pin === pin);
+      const adminUser = getAdminPersonasWithPins().find((user) => user.pin === pin);
       if (!adminUser) {
         return NextResponse.json({ error: AUTH_ERRORS.ADMIN_PIN_INVALID }, { status: 401 });
       }
