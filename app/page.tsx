@@ -196,14 +196,14 @@ function HomeContent() {
     snapshots[snapshots.length - 1] ?? snapshots[0] ?? fallbackSnapshot;
 
   // Use ecosystemStats if available, otherwise fall back to snapshot data
-  const ecosystemStats = (content as any).ecosystemStats;
+  const ecosystemStats = content.ecosystemStats;
   const organizations = Number.isFinite(ecosystemStats?.organizationsValue)
-    ? ecosystemStats.organizationsValue
+    ? ecosystemStats?.organizationsValue ?? 0
     : Number.isFinite(latestSnapshot.facilities)
     ? latestSnapshot.facilities
     : 0;
   const reports = Number.isFinite(ecosystemStats?.reportsValue)
-    ? ecosystemStats.reportsValue
+    ? ecosystemStats?.reportsValue ?? 0
     : Number.isFinite(latestSnapshot.events)
     ? latestSnapshot.events
     : 0;

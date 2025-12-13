@@ -72,6 +72,15 @@ export type HeroCopy = {
   descriptor: string;
 };
 
+export type EcosystemStats = {
+  organizationsLabel: string;
+  organizationsValue: number;
+  organizationsSubtext: string;
+  reportsLabel: string;
+  reportsValue: number;
+  reportsSubtext: string;
+};
+
 export type QuestionnaireAnswers = {
   hero: HeroCopy;
   metadata: CountdownMetadata;
@@ -81,6 +90,7 @@ export type QuestionnaireAnswers = {
   investors: InvestorPersona[];
   updatePrompts: QuestionnairePrompt[];
   mvpSnapshot: MvpSnapshot;
+  ecosystemStats?: EcosystemStats;
 };
 
 const formatDisplayDate = (value: string) => {
@@ -327,6 +337,7 @@ export const buildContentFromQuestionnaire = (answers: QuestionnaireAnswers) => 
     investors: answers.investors,
     questionnaire: answers.updatePrompts,
     mvpSnapshot: answers.mvpSnapshot ?? DEFAULT_MVP_SNAPSHOT,
+    ecosystemStats: answers.ecosystemStats,
   };
 };
 
