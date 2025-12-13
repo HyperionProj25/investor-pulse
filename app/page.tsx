@@ -169,7 +169,6 @@ function HomeContent() {
 
   // Dickhead Counter state
   const [isDickheadCounterOpen, setIsDickheadCounterOpen] = useState(false);
-  const [hasReportedThisSession, setHasReportedThisSession] = useState(false);
 
   const { hero, metadata, funding, snapshots, investors, mvpSnapshot } = content;
   const lastUpdated = metadata.lastUpdatedDisplay;
@@ -191,6 +190,17 @@ function HomeContent() {
   );
   const activeInvestor =
     investorProfiles.find((inv) => inv.slug === authenticatedSlug) ?? null;
+
+  // Check if current investor has reported today
+  const hasReportedToday = useMemo(() => {
+    if (!activeInvestor) return false;
+
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const storageKey = `dickhead-report-${activeInvestor.slug}`;
+    const lastReportDate = localStorage.getItem(storageKey);
+
+    return lastReportDate === today;
+  }, [activeInvestor]);
 
   const latestSnapshot =
     snapshots[snapshots.length - 1] ?? snapshots[0] ?? fallbackSnapshot;
@@ -442,7 +452,7 @@ useEffect(() => {
   };
 
   const handleSelfReport = async () => {
-    if (!activeInvestor || hasReportedThisSession) return;
+    if (!activeInvestor || hasReportedToday) return;
 
     try {
       // Increment the count locally
@@ -461,8 +471,10 @@ useEffect(() => {
         throw new Error("Failed to update count");
       }
 
-      // Mark as reported this session
-      setHasReportedThisSession(true);
+      // Mark as reported for today in localStorage
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const storageKey = `dickhead-report-${activeInvestor.slug}`;
+      localStorage.setItem(storageKey, today);
 
       // Refresh the site content to get updated count
       await fetchSiteContent();
@@ -827,7 +839,7 @@ useEffect(() => {
           currentInvestor={activeInvestor}
           allInvestors={investors}
           onSelfReport={handleSelfReport}
-          hasReportedThisSession={hasReportedThisSession}
+          hasReportedThisSession={hasReportedToday}
         />
       )}
     </div>
