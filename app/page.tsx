@@ -157,6 +157,11 @@ function HomeContent() {
   const [loadingAnnouncement, setLoadingAnnouncement] = useState("");
   const [progressAnimated, setProgressAnimated] = useState(false);
 
+  // Public investor list for login dropdown (fetched without auth)
+  const [publicInvestorList, setPublicInvestorList] = useState<
+    Array<{ slug: string; name: string; firm: string; title: string }>
+  >([]);
+
   const [countdownTarget, setCountdownTarget] = useState(EMPTY_LAUNCH_TARGET);
   const [countdown, setCountdown] = useState<Countdown>(
     getTimeRemaining(EMPTY_LAUNCH_TARGET)
@@ -213,6 +218,11 @@ function HomeContent() {
     try {
       const response = await fetch("/api/site-state");
       if (!response.ok) {
+        // Don't show error toast for 401 (unauthenticated) - this is expected on initial load
+        if (response.status === 401) {
+          setSiteLoading(false);
+          return;
+        }
         throw new Error(DATABASE_ERRORS.SITE_STATE_FETCH);
       }
       const data = await response.json();
@@ -249,6 +259,23 @@ function HomeContent() {
     }
   }, []);
 
+  const fetchPublicInvestorList = useCallback(async () => {
+    try {
+      const response = await fetch("/api/investors/list");
+      if (!response.ok) {
+        throw new Error("Failed to load investor list");
+      }
+      const data = await response.json();
+      if (data?.investors) {
+        setPublicInvestorList(data.investors);
+      }
+    } catch (error) {
+      console.error("Failed to load investor list", error);
+      // Don't show error toast here - this is a silent background fetch
+      // The user will see the "no investors configured" message if it fails
+    }
+  }, []);
+
   useEffect(() => {
     void fetchSiteContent();
   }, [fetchSiteContent]);
@@ -256,6 +283,10 @@ function HomeContent() {
   useEffect(() => {
     void fetchDeckContent();
   }, [fetchDeckContent]);
+
+  useEffect(() => {
+    void fetchPublicInvestorList();
+  }, [fetchPublicInvestorList]);
 
   useEffect(() => {
     const fallbackTarget = Number.isFinite(metadata.launchTimestamp)
@@ -375,6 +406,8 @@ useEffect(() => {
 
   const handleInvestorAuthenticated = (slug: string) => {
     setAuthenticatedSlug(slug);
+    // Fetch full site content now that we're authenticated
+    void fetchSiteContent();
   };
 
   if (!activeInvestor) {
@@ -388,7 +421,7 @@ useEffect(() => {
 
     return (
       <AccessPortal
-        investors={investorProfiles}
+        investors={publicInvestorList}
         initialInvestorSlug={investorSlugFromParams}
         onInvestorAuthenticated={handleInvestorAuthenticated}
       />

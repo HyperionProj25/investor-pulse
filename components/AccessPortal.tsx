@@ -3,12 +3,19 @@
 import { useMemo, useState, useId } from "react";
 import { useRouter } from "next/navigation";
 import { AUTH_ERRORS, NETWORK_ERRORS, VALIDATION_ERRORS, getUserFriendlyError } from "../lib/errorMessages";
-import type { InvestorPersona } from "../lib/questionnaire";
 
 type AccessMode = "investor" | "admin" | "deck";
 
+// Minimal investor info needed for the login dropdown
+type InvestorForLogin = {
+  slug: string;
+  name: string;
+  firm: string;
+  title?: string;
+};
+
 type AccessPortalProps = {
-  investors: InvestorPersona[];
+  investors: InvestorForLogin[];
   initialInvestorSlug?: string | null;
   onInvestorAuthenticated: (slug: string) => void;
 };
