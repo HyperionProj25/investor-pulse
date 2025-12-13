@@ -29,6 +29,14 @@ type FormData = {
     closeDate: string;
     useOfFunds: string;
   };
+  ecosystemStats: {
+    organizationsLabel: string;
+    organizationsValue: string;
+    organizationsSubtext: string;
+    reportsLabel: string;
+    reportsValue: string;
+    reportsSubtext: string;
+  };
   mvpSnapshot: {
     title: string;
     ctaLabel: string;
@@ -75,6 +83,14 @@ const AdminUpdateSitePage = () => {
       minCheck: "",
       closeDate: "",
       useOfFunds: "",
+    },
+    ecosystemStats: {
+      organizationsLabel: "Organizations",
+      organizationsValue: "0",
+      organizationsSubtext: "Tracking facility growth",
+      reportsLabel: "Reports",
+      reportsValue: "0",
+      reportsSubtext: "Generated across all teams",
     },
     mvpSnapshot: {
       title: "",
@@ -136,6 +152,9 @@ const AdminUpdateSitePage = () => {
           // Store the complete existing data
           setExistingData(p);
           // Load only the fields we're editing
+          // Get latest snapshot for ecosystem stats
+          const latestSnapshot = p.snapshots?.[p.snapshots.length - 1] || p.snapshots?.[0];
+
           setForm({
             hero: {
               kicker: p.hero?.kicker || "",
@@ -157,6 +176,14 @@ const AdminUpdateSitePage = () => {
               minCheck: p.funding?.minCheck || "",
               closeDate: p.funding?.closeDate || "",
               useOfFunds: p.funding?.useOfFunds || "",
+            },
+            ecosystemStats: {
+              organizationsLabel: p.ecosystemStats?.organizationsLabel || "Organizations",
+              organizationsValue: String(p.ecosystemStats?.organizationsValue ?? latestSnapshot?.facilities ?? "0"),
+              organizationsSubtext: p.ecosystemStats?.organizationsSubtext || "Tracking facility growth",
+              reportsLabel: p.ecosystemStats?.reportsLabel || "Reports",
+              reportsValue: String(p.ecosystemStats?.reportsValue ?? latestSnapshot?.events ?? "0"),
+              reportsSubtext: p.ecosystemStats?.reportsSubtext || "Generated across all teams",
             },
             mvpSnapshot: {
               title: p.mvpSnapshot?.title || "",
@@ -224,6 +251,14 @@ const AdminUpdateSitePage = () => {
           minCheck: form.funding.minCheck,
           closeDate: form.funding.closeDate,
           useOfFunds: form.funding.useOfFunds,
+        },
+        ecosystemStats: {
+          organizationsLabel: form.ecosystemStats.organizationsLabel,
+          organizationsValue: Number(form.ecosystemStats.organizationsValue) || 0,
+          organizationsSubtext: form.ecosystemStats.organizationsSubtext,
+          reportsLabel: form.ecosystemStats.reportsLabel,
+          reportsValue: Number(form.ecosystemStats.reportsValue) || 0,
+          reportsSubtext: form.ecosystemStats.reportsSubtext,
         },
         mvpSnapshot: form.mvpSnapshot,
       };
@@ -458,6 +493,84 @@ const AdminUpdateSitePage = () => {
                   placeholder="Product development & hiring"
                 />
               </label>
+            </div>
+
+            {/* Baseline Ecosystem Stats */}
+            <div className="rounded-2xl border border-[#1f1f1f] bg-[#0b0b0b] p-6 space-y-4">
+              <div>
+                <h2 className="text-lg font-semibold">Baseline Ecosystem</h2>
+                <p className="text-xs text-[#737373]">Organizations and Reports metrics displayed on investor page</p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="border-t border-[#262626] pt-4">
+                  <h3 className="text-sm font-semibold text-[#cb6b1e] mb-3">Organizations</h3>
+                  <div className="space-y-3">
+                    <label className="block">
+                      <span className="text-xs text-[#a3a3a3]">Label</span>
+                      <input
+                        className={inputClass}
+                        value={form.ecosystemStats.organizationsLabel}
+                        onChange={(e) => updateField("ecosystemStats", "organizationsLabel", e.target.value)}
+                        placeholder="Organizations"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs text-[#a3a3a3]">Value</span>
+                      <input
+                        type="number"
+                        className={inputClass}
+                        value={form.ecosystemStats.organizationsValue}
+                        onChange={(e) => updateField("ecosystemStats", "organizationsValue", e.target.value)}
+                        placeholder="0"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs text-[#a3a3a3]">Subtext</span>
+                      <input
+                        className={inputClass}
+                        value={form.ecosystemStats.organizationsSubtext}
+                        onChange={(e) => updateField("ecosystemStats", "organizationsSubtext", e.target.value)}
+                        placeholder="Tracking facility growth"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="border-t border-[#262626] pt-4">
+                  <h3 className="text-sm font-semibold text-[#cb6b1e] mb-3">Reports</h3>
+                  <div className="space-y-3">
+                    <label className="block">
+                      <span className="text-xs text-[#a3a3a3]">Label</span>
+                      <input
+                        className={inputClass}
+                        value={form.ecosystemStats.reportsLabel}
+                        onChange={(e) => updateField("ecosystemStats", "reportsLabel", e.target.value)}
+                        placeholder="Reports"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs text-[#a3a3a3]">Value</span>
+                      <input
+                        type="number"
+                        className={inputClass}
+                        value={form.ecosystemStats.reportsValue}
+                        onChange={(e) => updateField("ecosystemStats", "reportsValue", e.target.value)}
+                        placeholder="0"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs text-[#a3a3a3]">Subtext</span>
+                      <input
+                        className={inputClass}
+                        value={form.ecosystemStats.reportsSubtext}
+                        onChange={(e) => updateField("ecosystemStats", "reportsSubtext", e.target.value)}
+                        placeholder="Generated across all teams"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* MVP Snapshot */}

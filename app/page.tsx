@@ -189,12 +189,23 @@ function HomeContent() {
 
   const latestSnapshot =
     snapshots[snapshots.length - 1] ?? snapshots[0] ?? fallbackSnapshot;
-  const organizations = Number.isFinite(latestSnapshot.facilities)
+
+  // Use ecosystemStats if available, otherwise fall back to snapshot data
+  const ecosystemStats = (content as any).ecosystemStats;
+  const organizations = Number.isFinite(ecosystemStats?.organizationsValue)
+    ? ecosystemStats.organizationsValue
+    : Number.isFinite(latestSnapshot.facilities)
     ? latestSnapshot.facilities
     : 0;
-  const reports = Number.isFinite(latestSnapshot.events)
+  const reports = Number.isFinite(ecosystemStats?.reportsValue)
+    ? ecosystemStats.reportsValue
+    : Number.isFinite(latestSnapshot.events)
     ? latestSnapshot.events
     : 0;
+  const organizationsLabel = ecosystemStats?.organizationsLabel || "Organizations";
+  const organizationsSubtext = ecosystemStats?.organizationsSubtext || "Tracking facility growth";
+  const reportsLabel = ecosystemStats?.reportsLabel || "Reports";
+  const reportsSubtext = ecosystemStats?.reportsSubtext || "Generated across all teams";
 
   const fetchSiteContent = useCallback(async () => {
     setSiteLoading(true);
@@ -347,9 +358,9 @@ useEffect(() => {
   const fundingProgressRounded = Math.round(fundingProgress);
   const committedDisplay = `$${funding.committed.toLocaleString()}`;
   const targetDisplay = `$${funding.target.toLocaleString()}`;
-  const ecosystemStats = [
-    { label: "Organizations", value: organizations },
-    { label: "Reports", value: reports },
+  const ecosystemStatsDisplay = [
+    { label: organizationsLabel, value: organizations, subtext: organizationsSubtext },
+    { label: reportsLabel, value: reports, subtext: reportsSubtext },
   ];
 
   const handleLogout = async () => {
@@ -733,10 +744,10 @@ useEffect(() => {
                       {organizations}
                     </p>
                     <p className="text-sm uppercase tracking-wider text-[#a3a3a3] mt-2 group-hover:text-white transition-colors duration-300">
-                      Organizations
+                      {organizationsLabel}
                     </p>
                     <p className="text-xs text-[#737373] mt-1">
-                      Training facilities & academies
+                      {organizationsSubtext}
                     </p>
                   </div>
                 </div>
@@ -748,10 +759,10 @@ useEffect(() => {
                       {reports}
                     </p>
                     <p className="text-sm uppercase tracking-wider text-[#a3a3a3] mt-2 group-hover:text-white transition-colors duration-300">
-                      Reports
+                      {reportsLabel}
                     </p>
                     <p className="text-xs text-[#737373] mt-1">
-                      Performance evaluations generated
+                      {reportsSubtext}
                     </p>
                   </div>
                 </div>
