@@ -25,7 +25,7 @@ export const ADMIN_PERSONAS: AdminUser[] = [
     nextStep: "Open the questionnaire to edit and push the latest content live.",
     pixelAccent: "#a855f7",
     pixelMuted: "#e9d5ff",
-    pin: process.env.ADMIN_PIN_CHASE || "",
+    pin: process.env.ADMIN_PIN_CHASE || (() => { throw new Error("ADMIN_PIN_CHASE environment variable is required"); })(),
   },
   {
     slug: "sheldon-admin",
@@ -45,7 +45,7 @@ export const ADMIN_PERSONAS: AdminUser[] = [
     nextStep: "Head to the questionnaire page to edit and push a new update.",
     pixelAccent: "#0ea5e9",
     pixelMuted: "#bae6fd",
-    pin: process.env.ADMIN_PIN_SHELDON || "",
+    pin: process.env.ADMIN_PIN_SHELDON || (() => { throw new Error("ADMIN_PIN_SHELDON environment variable is required"); })(),
   },
 ];
 

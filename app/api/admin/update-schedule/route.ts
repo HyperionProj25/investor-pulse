@@ -7,6 +7,8 @@ import { getServiceSupabaseClient } from "@/lib/supabaseClient";
 import { AUTH_ERRORS, DATABASE_ERRORS, VALIDATION_ERRORS } from "@/lib/errorMessages";
 import { ADMIN_SLUGS } from "@/lib/adminUsers";
 import { validateTimeline, hasValidationErrors, type TimelineData } from "@/lib/timeline";
+import { SESSION_COOKIE, verifySessionToken } from "@/lib/session";
+import { cookies } from "next/headers";
 
 /**
  * GET /api/admin/update-schedule
@@ -68,10 +70,38 @@ export async function GET() {
  */
 export async function POST(request: Request) {
   try {
+    // Verify admin session
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get(SESSION_COOKIE)?.value;
+
+    if (!sessionCookie) {
+      return NextResponse.json(
+        { error: AUTH_ERRORS.NOT_AUTHENTICATED },
+        { status: 401 }
+      );
+    }
+
+    const session = verifySessionToken(sessionCookie);
+
+    if (!session) {
+      return NextResponse.json(
+        { error: AUTH_ERRORS.SESSION_INVALID },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { adminSlug, timeline, notes } = body;
 
-    // Validate admin authorization
+    // Verify the session belongs to an admin and matches the claimed adminSlug
+    if (session.role !== "admin" || session.slug !== adminSlug) {
+      return NextResponse.json(
+        { error: AUTH_ERRORS.ADMIN_ACCESS_REQUIRED },
+        { status: 403 }
+      );
+    }
+
+    // Validate admin slug
     if (!adminSlug || !ADMIN_SLUGS.includes(adminSlug)) {
       return NextResponse.json(
         { error: AUTH_ERRORS.ADMIN_ACCESS_REQUIRED },

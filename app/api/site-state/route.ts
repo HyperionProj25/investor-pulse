@@ -1,9 +1,39 @@
 import { NextResponse } from "next/server";
-import { DATABASE_ERRORS } from "../../../lib/errorMessages";
+import { DATABASE_ERRORS, AUTH_ERRORS } from "../../../lib/errorMessages";
 import { getServiceSupabaseClient } from "../../../lib/supabaseClient";
+import { SESSION_COOKIE, verifySessionToken } from "../../../lib/session";
+import { cookies } from "next/headers";
 
 export async function GET() {
   try {
+    // Require authentication - investors, deck viewers, or admins
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get(SESSION_COOKIE)?.value;
+
+    if (!sessionCookie) {
+      return NextResponse.json(
+        { error: AUTH_ERRORS.NOT_AUTHENTICATED },
+        { status: 401 }
+      );
+    }
+
+    const session = verifySessionToken(sessionCookie);
+
+    if (!session) {
+      return NextResponse.json(
+        { error: AUTH_ERRORS.SESSION_INVALID },
+        { status: 401 }
+      );
+    }
+
+    // Allow investors, deck viewers, and admins
+    if (!["investor", "deck", "admin"].includes(session.role)) {
+      return NextResponse.json(
+        { error: AUTH_ERRORS.NOT_AUTHENTICATED },
+        { status: 403 }
+      );
+    }
+
     const supabase = getServiceSupabaseClient();
     const { data, error } = await supabase
       .from("site_state")

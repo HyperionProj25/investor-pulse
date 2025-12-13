@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { DATABASE_ERRORS, VALIDATION_ERRORS } from "@/lib/errorMessages";
+import { DATABASE_ERRORS, VALIDATION_ERRORS, AUTH_ERRORS } from "@/lib/errorMessages";
+import { SESSION_COOKIE, verifySessionToken } from "@/lib/session";
+import { ADMIN_SLUGS, ADMIN_PERSONAS } from "@/lib/adminUsers";
+import { cookies } from "next/headers";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -43,8 +46,36 @@ export async function GET() {
 // POST /api/pitch-deck - Update pitch deck content (admin only)
 export async function POST(request: Request) {
   try {
+    // Verify admin session
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get(SESSION_COOKIE)?.value;
+
+    if (!sessionCookie) {
+      return NextResponse.json(
+        { error: AUTH_ERRORS.NOT_AUTHENTICATED },
+        { status: 401 }
+      );
+    }
+
+    const session = verifySessionToken(sessionCookie);
+
+    if (!session) {
+      return NextResponse.json(
+        { error: AUTH_ERRORS.SESSION_INVALID },
+        { status: 401 }
+      );
+    }
+
+    // Only admins can update pitch deck
+    if (session.role !== "admin" || !ADMIN_SLUGS.includes(session.slug)) {
+      return NextResponse.json(
+        { error: AUTH_ERRORS.ADMIN_ACCESS_REQUIRED },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
-    const { payload, author, notes } = body;
+    const { payload, notes } = body;
 
     if (!payload) {
       return NextResponse.json(
@@ -52,6 +83,10 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    // Get author from session, not request body
+    const admin = ADMIN_PERSONAS.find((p) => p.slug === session.slug);
+    const author = admin?.shortLabel ?? admin?.name ?? session.slug;
 
     // Get current state to increment version
     const { data: currentState } = await supabase
@@ -69,7 +104,7 @@ export async function POST(request: Request) {
       .update({
         payload,
         version: newVersion,
-        updated_by: author || "Unknown",
+        updated_by: author,
         updated_at: new Date().toISOString(),
       })
       .eq("id", currentState?.id);
@@ -86,7 +121,7 @@ export async function POST(request: Request) {
     const { error: historyError } = await supabase
       .from("pitch_deck_update_history")
       .insert({
-        author: author || "Unknown",
+        author,
         payload,
         notes: notes || "",
       });

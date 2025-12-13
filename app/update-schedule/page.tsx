@@ -1,6 +1,9 @@
 import type { CSSProperties } from "react";
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import TimelineBoard from "@/components/TimelineBoard";
 import { fetchActiveTimeline } from "@/lib/timelineServer";
+import { SESSION_COOKIE, verifySessionToken } from "@/lib/session";
 
 export const metadata = {
   title: "Baseline Update Schedule",
@@ -17,6 +20,20 @@ const radialStyle: CSSProperties = {
 };
 
 export default async function UpdateSchedulePage() {
+  // Require authentication to view update schedule
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get(SESSION_COOKIE)?.value;
+
+  if (!sessionCookie) {
+    redirect("/?mode=admin");
+  }
+
+  const session = verifySessionToken(sessionCookie);
+
+  if (!session) {
+    redirect("/?mode=admin");
+  }
+
   const timeline = await fetchActiveTimeline();
 
   return (

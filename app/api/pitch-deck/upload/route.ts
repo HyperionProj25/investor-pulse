@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { FILE_UPLOAD_ERRORS, VALIDATION_ERRORS } from "@/lib/errorMessages";
+import { FILE_UPLOAD_ERRORS, VALIDATION_ERRORS, AUTH_ERRORS } from "@/lib/errorMessages";
+import { SESSION_COOKIE, verifySessionToken } from "@/lib/session";
+import { ADMIN_SLUGS } from "@/lib/adminUsers";
+import { cookies } from "next/headers";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -62,6 +65,34 @@ const isAllowedType = (file: File) => {
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify admin session
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get(SESSION_COOKIE)?.value;
+
+    if (!sessionCookie) {
+      return NextResponse.json(
+        { error: AUTH_ERRORS.NOT_AUTHENTICATED },
+        { status: 401 }
+      );
+    }
+
+    const session = verifySessionToken(sessionCookie);
+
+    if (!session) {
+      return NextResponse.json(
+        { error: AUTH_ERRORS.SESSION_INVALID },
+        { status: 401 }
+      );
+    }
+
+    // Only admins can upload files
+    if (session.role !== "admin" || !ADMIN_SLUGS.includes(session.slug)) {
+      return NextResponse.json(
+        { error: AUTH_ERRORS.ADMIN_ACCESS_REQUIRED },
+        { status: 403 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get("file");
 
