@@ -141,6 +141,18 @@ const enforceMasonryMode = (
   return { ...payload, displayMode: "masonry" };
 };
 
+type ExtractedSlide = {
+  id: string;
+  slide_number: number;
+  display_order: number;
+  image_url: string;
+  is_active: boolean;
+};
+
+type ExtractedSlideSettings = {
+  slide_size: "small" | "medium" | "large";
+};
+
 export default function PitchDeckPage() {
   const [authenticated, setAuthenticated] = useState(false);
   const [sessionLoading, setSessionLoading] = useState(true);
@@ -168,6 +180,11 @@ export default function PitchDeckPage() {
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [adminAuthError, setAdminAuthError] = useState<string | null>(null);
+
+  // New state for extracted PDF slides
+  const [extractedSlides, setExtractedSlides] = useState<ExtractedSlide[]>([]);
+  const [extractedSettings, setExtractedSettings] = useState<ExtractedSlideSettings>({ slide_size: "medium" });
+  const [extractedSlidesLoading, setExtractedSlidesLoading] = useState(false);
 
   const loadDeckContent = useCallback(async () => {
     setContentLoading(true);
@@ -203,6 +220,34 @@ export default function PitchDeckPage() {
     }
     void loadDeckContent();
   }, [authenticated, loadDeckContent]);
+
+  // Load extracted PDF slides
+  useEffect(() => {
+    const loadExtractedSlides = async () => {
+      if (!authenticated) {
+        setExtractedSlides([]);
+        return;
+      }
+
+      setExtractedSlidesLoading(true);
+      try {
+        const response = await fetch("/api/pitch-deck/slides");
+        if (!response.ok) {
+          throw new Error("Failed to fetch extracted slides");
+        }
+        const data = await response.json();
+        setExtractedSlides(data.slides || []);
+        setExtractedSettings(data.settings || { slide_size: "medium" });
+      } catch (error) {
+        console.error("Failed to load extracted slides:", error);
+        setExtractedSlides([]);
+      } finally {
+        setExtractedSlidesLoading(false);
+      }
+    };
+
+    void loadExtractedSlides();
+  }, [authenticated]);
 
   useEffect(() => {
     if (contentLoading) {
@@ -1028,6 +1073,59 @@ export default function PitchDeckPage() {
 
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4 py-12">
+
+        {/* Extracted PDF Slides Section */}
+        {extractedSlides.length > 0 && (
+          <div className="mb-12">
+            {extractedSlides.length === 1 ? (
+              // Single slide - embedded view
+              <div className="flex justify-center">
+                <div
+                  className={`rounded-2xl overflow-hidden shadow-2xl border border-white/10 ${
+                    extractedSettings.slide_size === "small"
+                      ? "max-w-md"
+                      : extractedSettings.slide_size === "large"
+                      ? "max-w-5xl"
+                      : "max-w-3xl"
+                  }`}
+                >
+                  <img
+                    src={extractedSlides[0].image_url}
+                    alt={`Slide ${extractedSlides[0].slide_number}`}
+                    className="w-full h-auto"
+                  />
+                </div>
+              </div>
+            ) : (
+              // Multiple slides - vertical scroll
+              <div className="space-y-6">
+                <h2 className="text-2xl font-semibold text-[#f6e1bd] text-center mb-8">
+                  Pitch Deck
+                </h2>
+                <div className="space-y-6">
+                  {extractedSlides.map((slide) => (
+                    <div
+                      key={slide.id}
+                      className={`rounded-2xl overflow-hidden shadow-2xl border border-white/10 mx-auto ${
+                        extractedSettings.slide_size === "small"
+                          ? "max-w-md"
+                          : extractedSettings.slide_size === "large"
+                          ? "max-w-5xl"
+                          : "max-w-3xl"
+                      }`}
+                    >
+                      <img
+                        src={slide.image_url}
+                        alt={`Slide ${slide.display_order}`}
+                        className="w-full h-auto"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Edit Mode Controls */}
         {editMode && !previewMode && (
