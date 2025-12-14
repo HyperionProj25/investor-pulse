@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import BaselineLogo from "../components/BaselineLogo";
 import AccessPortal from "../components/AccessPortal";
+import BrainTrustAgreement from "../components/BrainTrustAgreement";
 import DickheadCounter from "../components/DickheadCounter";
 import {
   buildContentFromQuestionnaire,
@@ -169,6 +170,10 @@ function HomeContent() {
 
   // Dickhead Counter state
   const [isDickheadCounterOpen, setIsDickheadCounterOpen] = useState(false);
+
+  // Brain Trust Agreement state
+  const [hasAgreed, setHasAgreed] = useState<boolean | null>(null); // null = checking, true/false = known
+  const [checkingAgreement, setCheckingAgreement] = useState(true);
 
   const { hero, metadata, funding, snapshots, investors, mvpSnapshot } = content;
   const lastUpdated = metadata.lastUpdatedDisplay;
@@ -355,6 +360,32 @@ useEffect(() => {
     fetchSession();
   }, []);
 
+  // Check if investor has agreed to Brain Trust terms
+  useEffect(() => {
+    const checkAgreement = async () => {
+      if (!authenticatedSlug) {
+        setCheckingAgreement(false);
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/investor/agree-terms");
+        if (!response.ok) {
+          setHasAgreed(false);
+          return;
+        }
+        const data = await response.json();
+        setHasAgreed(data.hasAgreed);
+      } catch (error) {
+        console.error("Failed to check agreement status", error);
+        setHasAgreed(false);
+      } finally {
+        setCheckingAgreement(false);
+      }
+    };
+    checkAgreement();
+  }, [authenticatedSlug]);
+
   useEffect(() => {
     if (!investorSlugFromParams || typeof window === "undefined") {
       return;
@@ -420,6 +451,23 @@ useEffect(() => {
     void fetchSiteContent();
   };
 
+  const handleAgree = async () => {
+    try {
+      const response = await fetch("/api/investor/agree-terms", {
+        method: "POST",
+      });
+      if (!response.ok) {
+        toast.error("Failed to record agreement");
+        return;
+      }
+      setHasAgreed(true);
+      toast.success("Welcome to the Brain Trust!");
+    } catch (error) {
+      console.error("Failed to record agreement", error);
+      toast.error("Failed to record agreement");
+    }
+  };
+
   if (!activeInvestor) {
     if (checkingSession) {
       return (
@@ -436,6 +484,20 @@ useEffect(() => {
         onInvestorAuthenticated={handleInvestorAuthenticated}
       />
     );
+  }
+
+  // If authenticated but still checking agreement status, show loading
+  if (checkingAgreement) {
+    return (
+      <div className="min-h-screen bg-[#050505] text-[#f6e1bd] flex items-center justify-center">
+        <p className="text-sm text-[#a3a3a3]">Loading…</p>
+      </div>
+    );
+  }
+
+  // If authenticated but hasn't agreed to Brain Trust terms, show agreement page
+  if (hasAgreed === false) {
+    return <BrainTrustAgreement onAgree={handleAgree} />;
   }
 
   const scrollToSection = (id: string) => {
