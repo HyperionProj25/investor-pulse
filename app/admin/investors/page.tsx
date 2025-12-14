@@ -27,6 +27,7 @@ const AdminInvestorsPage = () => {
   const [formData, setFormData] = useState<Partial<InvestorPersona>>({});
   const [showPin, setShowPin] = useState(false);
   const [sessionStats, setSessionStats] = useState<Record<string, { lastLogin: string | null; totalVisits: number }>>({});
+  const [confirmResetSlug, setConfirmResetSlug] = useState<string | null>(null);
 
   const adminLabel = useMemo(() => {
     if (!authorizedAdmin) return null;
@@ -261,6 +262,43 @@ const AdminInvestorsPage = () => {
     } catch (err) {
       console.error("Delete failed:", err);
       toast.error(getUserFriendlyError(err, "Failed to delete investor"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const resetVisitCount = async (slug: string) => {
+    setSaving(true);
+    try {
+      const response = await fetch("/api/admin/reset-visits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          investorSlug: slug,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to reset visit count");
+      }
+
+      // Update local session stats
+      setSessionStats((prev) => {
+        const updated = { ...prev };
+        if (updated[slug]) {
+          updated[slug] = {
+            lastLogin: null,
+            totalVisits: 0,
+          };
+        }
+        return updated;
+      });
+
+      setConfirmResetSlug(null);
+      toast.success("Visit count reset successfully!");
+    } catch (err) {
+      console.error("Reset failed:", err);
+      toast.error("Failed to reset visit count");
     } finally {
       setSaving(false);
     }
@@ -829,7 +867,7 @@ const AdminInvestorsPage = () => {
                     )}
                     {/* Session Analytics */}
                     {sessionStats[investor.slug] && (
-                      <div className="mt-3 flex gap-4 text-xs text-[#a3a3a3]">
+                      <div className="mt-3 flex gap-4 text-xs text-[#a3a3a3] items-center">
                         <span>
                           Last login:{" "}
                           <span className="text-[#f6e1bd]">
@@ -838,11 +876,20 @@ const AdminInvestorsPage = () => {
                               : "Never"}
                           </span>
                         </span>
-                        <span>
+                        <span className="flex items-center gap-2">
                           Total visits:{" "}
                           <span className="text-[#cb6b1e] font-semibold">
                             {sessionStats[investor.slug].totalVisits}
                           </span>
+                          {sessionStats[investor.slug].totalVisits > 0 && (
+                            <button
+                              onClick={() => setConfirmResetSlug(investor.slug)}
+                              className="text-[10px] px-2 py-0.5 rounded border border-[#2a2a2a] hover:border-[#cb6b1e] hover:text-[#cb6b1e] transition-colors"
+                              disabled={saving}
+                            >
+                              Reset
+                            </button>
+                          )}
                         </span>
                       </div>
                     )}
@@ -877,6 +924,46 @@ const AdminInvestorsPage = () => {
           + Add New Investor
         </button>
       </main>
+
+      {/* Reset Visit Count Confirmation Dialog */}
+      {confirmResetSlug && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => setConfirmResetSlug(null)}
+        >
+          <div
+            className="relative w-full max-w-md mx-4 bg-[#0b0b0b] border border-[#262626] rounded-2xl shadow-2xl p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-xl font-semibold text-[#f6e1bd] mb-2">
+              Reset Visit Count?
+            </h2>
+            <p className="text-sm text-[#a3a3a3] mb-6">
+              This will permanently delete all visit history for{" "}
+              <span className="text-[#cb6b1e] font-semibold">
+                {investors.find((inv) => inv.slug === confirmResetSlug)?.name}
+              </span>
+              . This cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmResetSlug(null)}
+                className="px-4 py-2 rounded-lg border border-[#2a2a2a] text-sm hover:border-[#f6e1bd] transition-colors"
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => resetVisitCount(confirmResetSlug)}
+                className="px-4 py-2 rounded-lg bg-[#cb6b1e] text-black text-sm font-semibold hover:bg-[#e37a2e] transition-colors disabled:opacity-50"
+                disabled={saving}
+              >
+                {saving ? "Resetting..." : "Reset Visit Count"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
