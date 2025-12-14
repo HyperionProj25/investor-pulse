@@ -14,6 +14,7 @@ const AdminNav = ({ adminLabel }: AdminNavProps) => {
     { href: "/admin/investors", label: "Investors" },
     { href: "/admin/update-site", label: "Update Site" },
     { href: "/admin/update-schedule", label: "Update Schedule" },
+    { href: "/admin/pitch-deck", label: "Pitch Deck" },
   ];
 
   const isActive = (href: string) => pathname === href;
