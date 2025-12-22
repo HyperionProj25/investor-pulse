@@ -26,12 +26,36 @@ const AdminPitchDeckPage = () => {
   const [slides, setSlides] = useState<Slide[]>([]);
   const [slideSize, setSlideSize] = useState<SlideSize>("medium");
   const [draggedSlideId, setDraggedSlideId] = useState<string | null>(null);
+  const activeSlideCount = useMemo(
+    () => slides.filter((slide) => slide.is_active).length,
+    [slides]
+  );
 
   const adminLabel = useMemo(() => {
     if (!authorizedAdmin) return null;
     const admin = ADMIN_PERSONAS.find((p) => p.slug === authorizedAdmin);
     return admin?.shortLabel ?? admin?.name ?? authorizedAdmin;
   }, [authorizedAdmin]);
+
+  const fetchSlides = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setLoading(true);
+    }
+    try {
+      const response = await fetch("/api/pitch-deck/slides?includeInactive=1");
+      if (!response.ok) throw new Error("Failed to fetch slides");
+      const data = await response.json();
+      setSlides(data.slides || []);
+      setSlideSize(data.settings?.slide_size || "medium");
+    } catch (err) {
+      console.error("Load failed:", err);
+      toast.error("Failed to load slides");
+    } finally {
+      if (showLoading) {
+        setLoading(false);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const verifySession = async () => {
@@ -58,23 +82,8 @@ const AdminPitchDeckPage = () => {
   }, [router]);
 
   useEffect(() => {
-    const loadSlides = async () => {
-      setLoading(true);
-      try {
-        const response = await fetch("/api/pitch-deck/slides");
-        if (!response.ok) throw new Error("Failed to fetch slides");
-        const data = await response.json();
-        setSlides(data.slides || []);
-        setSlideSize(data.settings?.slide_size || "medium");
-      } catch (err) {
-        console.error("Load failed:", err);
-        toast.error("Failed to load slides");
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (authorizedAdmin) void loadSlides();
-  }, [authorizedAdmin]);
+    if (authorizedAdmin) void fetchSlides();
+  }, [authorizedAdmin, fetchSlides]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -110,9 +119,7 @@ const AdminPitchDeckPage = () => {
         toast.success(`PDF uploaded! Extracted ${data.slidesExtracted} slides`);
 
         // Reload slides
-        const slidesResponse = await fetch("/api/pitch-deck/slides");
-        const slidesData = await slidesResponse.json();
-        setSlides(slidesData.slides || []);
+        await fetchSlides(false);
       } else {
         toast.success("File uploaded successfully!");
       }
@@ -142,6 +149,34 @@ const AdminPitchDeckPage = () => {
     } catch (err) {
       console.error("Delete failed:", err);
       toast.error("Failed to delete slide");
+    }
+  };
+
+  const handleToggleActive = async (slideId: string, nextActive: boolean) => {
+    setSlides((prev) =>
+      prev.map((slide) =>
+        slide.id === slideId ? { ...slide, is_active: nextActive } : slide
+      )
+    );
+
+    try {
+      const response = await fetch("/api/pitch-deck/slides", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set_active", slideId, is_active: nextActive }),
+      });
+
+      if (!response.ok) throw new Error("Failed to update slide visibility");
+
+      toast.success(nextActive ? "Slide shown" : "Slide hidden");
+    } catch (err) {
+      console.error("Visibility update failed:", err);
+      setSlides((prev) =>
+        prev.map((slide) =>
+          slide.id === slideId ? { ...slide, is_active: !nextActive } : slide
+        )
+      );
+      toast.error("Failed to update slide visibility");
     }
   };
 
@@ -218,9 +253,7 @@ const AdminPitchDeckPage = () => {
       toast.error("Failed to reorder slides");
 
       // Reload slides to restore original order
-      const slidesResponse = await fetch("/api/pitch-deck/slides");
-      const slidesData = await slidesResponse.json();
-      setSlides(slidesData.slides || []);
+      await fetchSlides(false);
     }
   };
 
@@ -305,7 +338,7 @@ const AdminPitchDeckPage = () => {
           <div className="rounded-2xl border border-[#1f1f1f] bg-[#0b0b0b] p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">
-                Slides ({slides.length})
+                Slides ({activeSlideCount}/{slides.length} active)
               </h2>
               {slides.length > 0 && (
                 <p className="text-xs text-[#737373]">
@@ -331,18 +364,33 @@ const AdminPitchDeckPage = () => {
                     onDrop={() => handleDrop(slide.id)}
                     className={`rounded-xl border border-[#262626] bg-[#050505] p-4 cursor-move transition-all ${
                       draggedSlideId === slide.id ? "opacity-50 scale-95" : "hover:border-[#cb6b1e]"
-                    }`}
+                    } ${slide.is_active ? "" : "opacity-60"}`}
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-[#cb6b1e]">
-                        Slide {slide.display_order}
-                      </span>
-                      <button
-                        onClick={() => handleDeleteSlide(slide.id)}
-                        className="rounded-md bg-red-900/30 px-2 py-1 text-xs text-red-400 hover:bg-red-900/50 transition-colors"
-                      >
-                        Delete
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-[#cb6b1e]">
+                          Slide {slide.display_order}
+                        </span>
+                        {!slide.is_active && (
+                          <span className="rounded-full bg-[#1f1f1f] px-2 py-0.5 text-[10px] uppercase tracking-wide text-[#a3a3a3]">
+                            Hidden
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleToggleActive(slide.id, !slide.is_active)}
+                          className="rounded-md bg-[#1a1a1a] px-2 py-1 text-xs text-[#f6e1bd] hover:bg-[#262626] transition-colors"
+                        >
+                          {slide.is_active ? "Hide" : "Show"}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSlide(slide.id)}
+                          className="rounded-md bg-red-900/30 px-2 py-1 text-xs text-red-400 hover:bg-red-900/50 transition-colors"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                     <div className="aspect-video w-full rounded-lg overflow-hidden bg-[#0a0a0a]">
                       <img

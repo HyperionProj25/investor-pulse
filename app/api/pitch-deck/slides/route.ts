@@ -5,8 +5,8 @@ import { ADMIN_SLUGS } from "../../../../lib/adminUsers";
 import { SESSION_COOKIE, verifySessionToken } from "../../../../lib/session";
 import { cookies } from "next/headers";
 
-// GET - Fetch all active slides
-export async function GET() {
+// GET - Fetch slides
+export async function GET(request: NextRequest) {
   try {
     // Verify admin or deck session
     const cookieStore = await cookies();
@@ -29,13 +29,23 @@ export async function GET() {
     }
 
     const supabase = getServiceSupabaseClient();
+    const { searchParams } = new URL(request.url);
+    const includeInactive = searchParams.get("includeInactive") === "1";
+    const allowInactive =
+      includeInactive &&
+      session.role === "admin" &&
+      ADMIN_SLUGS.includes(session.slug);
 
-    // Fetch all active slides ordered by display_order
-    const { data: slides, error } = await supabase
+    let slidesQuery = supabase
       .from("pitch_deck_slides")
       .select("*")
-      .eq("is_active", true)
       .order("display_order", { ascending: true });
+
+    if (!allowInactive) {
+      slidesQuery = slidesQuery.eq("is_active", true);
+    }
+
+    const { data: slides, error } = await slidesQuery;
 
     if (error) {
       throw error;
@@ -84,7 +94,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { action, slideId, slides } = body;
+    const { action, slideId, slides, is_active } = body;
 
     const supabase = getServiceSupabaseClient();
 
@@ -126,6 +136,26 @@ export async function POST(request: NextRequest) {
         .from("pitch_deck_settings")
         .update({ slide_size: size, updated_at: new Date().toISOString() })
         .eq("id", (await supabase.from("pitch_deck_settings").select("id").single()).data?.id);
+
+      if (error) {
+        throw error;
+      }
+
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === "set_active") {
+      if (typeof is_active !== "boolean") {
+        return NextResponse.json(
+          { error: "Invalid is_active value" },
+          { status: 400 }
+        );
+      }
+
+      const { error } = await supabase
+        .from("pitch_deck_slides")
+        .update({ is_active })
+        .eq("id", slideId);
 
       if (error) {
         throw error;
