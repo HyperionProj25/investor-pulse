@@ -11,22 +11,22 @@ const AdminNav = ({ adminLabel }: AdminNavProps) => {
   const pathname = usePathname();
 
   const navItems = [
-    { href: "/admin/investors", label: "Investors" },
-    { href: "/admin/update-site", label: "Update Site" },
-    { href: "/admin/update-schedule", label: "Update Schedule" },
-    { href: "/admin/pitch-deck", label: "Pitch Deck" },
+    { href: "/admin/investor-pulse/investors", label: "Investors" },
+    { href: "/admin/investor-pulse/update-site", label: "Update Site" },
+    { href: "/admin/investor-pulse/update-schedule", label: "Update Schedule" },
+    { href: "/admin/investor-pulse/pitch-deck", label: "Pitch Deck" },
   ];
 
   const isActive = (href: string) => pathname === href;
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[#1f1f1f] bg-[#06 0606]">
+    <header className="sticky top-0 z-50 border-b border-[#1f1f1f] bg-[#060606]">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-8">
             <div>
               <p className="text-[11px] uppercase tracking-[0.3em] text-[#cb6b1e]">
-                Admin Portal
+                Investor Pulse
               </p>
               {adminLabel && (
                 <p className="text-xs text-[#a3a3a3]">Signed in as {adminLabel}</p>
@@ -49,10 +49,10 @@ const AdminNav = ({ adminLabel }: AdminNavProps) => {
             </nav>
           </div>
           <Link
-            href="/"
+            href="/admin"
             className="text-xs text-[#a3a3a3] underline-offset-4 hover:underline"
           >
-            ← Back to Investor Pulse
+            ← Back to Admin Hub
           </Link>
         </div>
       </div>
