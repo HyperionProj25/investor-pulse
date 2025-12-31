@@ -319,8 +319,17 @@ export default function BizDevOverviewPage() {
             </p>
           </div>
 
-          {/* Overall Score */}
-          <div className="text-center">
+          <div className="flex items-center gap-4">
+            {/* Meeting Mode Button */}
+            <Link
+              href="/admin/biz-dev/meeting"
+              className="rounded-xl bg-[#cb6b1e] px-6 py-3 text-sm font-semibold text-black hover:bg-[#e37a2e] transition-colors"
+            >
+              Meeting Mode
+            </Link>
+
+            {/* Overall Score */}
+            <div className="text-center">
             <div className="relative w-20 h-20">
               <svg className="w-full h-full -rotate-90">
                 <circle
@@ -346,6 +355,7 @@ export default function BizDevOverviewPage() {
               </div>
             </div>
             <p className="text-xs text-[#737373] mt-1">Complete</p>
+            </div>
           </div>
         </div>
 
