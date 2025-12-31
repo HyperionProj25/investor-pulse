@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import AdminNav from "@/components/AdminNav";
 import { ADMIN_PERSONAS, ADMIN_SLUGS } from "@/lib/adminUsers";
+import * as pdfjsLib from "pdfjs-dist";
+
+// Set worker path for pdf.js
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 type Slide = {
   id: string;
@@ -23,9 +27,12 @@ const AdminPitchDeckPage = () => {
   const [sessionChecked, setSessionChecked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [slides, setSlides] = useState<Slide[]>([]);
   const [slideSize, setSlideSize] = useState<SlideSize>("medium");
   const [draggedSlideId, setDraggedSlideId] = useState<string | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
   const activeSlideCount = useMemo(
     () => slides.filter((slide) => slide.is_active).length,
     [slides]
@@ -38,9 +45,7 @@ const AdminPitchDeckPage = () => {
   }, [authorizedAdmin]);
 
   const fetchSlides = useCallback(async (showLoading = true) => {
-    if (showLoading) {
-      setLoading(true);
-    }
+    if (showLoading) setLoading(true);
     try {
       const response = await fetch("/api/pitch-deck/slides?includeInactive=1");
       if (!response.ok) throw new Error("Failed to fetch slides");
@@ -51,9 +56,7 @@ const AdminPitchDeckPage = () => {
       console.error("Load failed:", err);
       toast.error("Failed to load slides");
     } finally {
-      if (showLoading) {
-        setLoading(false);
-      }
+      if (showLoading) setLoading(false);
     }
   }, []);
 
@@ -85,44 +88,92 @@ const AdminPitchDeckPage = () => {
     if (authorizedAdmin) void fetchSlides();
   }, [authorizedAdmin, fetchSlides]);
 
+  // Convert PDF page to PNG blob
+  const renderPageToBlob = async (
+    pdf: pdfjsLib.PDFDocumentProxy,
+    pageNum: number
+  ): Promise<Blob> => {
+    const page = await pdf.getPage(pageNum);
+    const scale = 2.0; // 2x for better quality
+    const viewport = page.getViewport({ scale });
+
+    // Create off-screen canvas
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Failed to get canvas context");
+
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+
+    await page.render({
+      canvasContext: context,
+      viewport: viewport,
+      canvas: canvas as any,
+    }).promise;
+
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("Failed to convert canvas to blob"));
+        },
+        "image/png",
+        0.95
+      );
+    });
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    const isPDF = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-    const isVideo = ["video/mp4", "video/webm", "video/quicktime"].includes(file.type);
+    const isPDF =
+      file.type === "application/pdf" ||
+      file.name.toLowerCase().endsWith(".pdf");
 
-    if (!isPDF && !isVideo) {
-      toast.error("Please upload a PDF or video file");
+    if (!isPDF) {
+      toast.error("Please upload a PDF file");
       return;
     }
 
     setUploading(true);
+    setUploadProgress({ current: 0, total: 0 });
+
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      // Load PDF in browser
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const numPages = pdf.numPages;
 
-      const response = await fetch("/api/pitch-deck/upload", {
-        method: "POST",
-        body: formData,
-      });
+      setUploadProgress({ current: 0, total: numPages });
+      toast.success(`Processing ${numPages} pages...`);
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Upload failed");
+      // Process and upload each page
+      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        setUploadProgress({ current: pageNum, total: numPages });
+
+        // Render page to blob
+        const blob = await renderPageToBlob(pdf, pageNum);
+
+        // Upload slide
+        const formData = new FormData();
+        formData.append("file", blob, `slide-${pageNum}.png`);
+        formData.append("slideNumber", pageNum.toString());
+        formData.append("isFirst", pageNum === 1 ? "true" : "false");
+
+        const response = await fetch("/api/pitch-deck/upload-slide", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          console.error(`Failed to upload slide ${pageNum}:`, error);
+        }
       }
 
-      const data = await response.json();
-
-      if (data.isPDF && data.slidesExtracted > 0) {
-        toast.success(`PDF uploaded! Extracted ${data.slidesExtracted} slides`);
-
-        // Reload slides
-        await fetchSlides(false);
-      } else {
-        toast.success("File uploaded successfully!");
-      }
+      toast.success(`Uploaded ${numPages} slides!`);
+      await fetchSlides(false);
 
       // Clear file input
       e.target.value = "";
@@ -131,6 +182,7 @@ const AdminPitchDeckPage = () => {
       toast.error(err.message || "Upload failed");
     } finally {
       setUploading(false);
+      setUploadProgress({ current: 0, total: 0 });
     }
   };
 
@@ -220,12 +272,10 @@ const AdminPitchDeckPage = () => {
       return;
     }
 
-    // Reorder slides array
     const newSlides = [...slides];
     const [draggedSlide] = newSlides.splice(draggedIndex, 1);
     newSlides.splice(targetIndex, 0, draggedSlide);
 
-    // Update display_order
     const updatedSlides = newSlides.map((slide, index) => ({
       ...slide,
       display_order: index + 1,
@@ -234,14 +284,16 @@ const AdminPitchDeckPage = () => {
     setSlides(updatedSlides);
     setDraggedSlideId(null);
 
-    // Save to backend
     try {
       const response = await fetch("/api/pitch-deck/slides", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "reorder",
-          slides: updatedSlides.map((s) => ({ id: s.id, display_order: s.display_order })),
+          slides: updatedSlides.map((s) => ({
+            id: s.id,
+            display_order: s.display_order,
+          })),
         }),
       });
 
@@ -251,9 +303,22 @@ const AdminPitchDeckPage = () => {
     } catch (err) {
       console.error("Reorder failed:", err);
       toast.error("Failed to reorder slides");
-
-      // Reload slides to restore original order
       await fetchSlides(false);
+    }
+  };
+
+  // Bulk actions
+  const handleShowAll = async () => {
+    const hiddenSlides = slides.filter((s) => !s.is_active);
+    for (const slide of hiddenSlides) {
+      await handleToggleActive(slide.id, true);
+    }
+  };
+
+  const handleHideAll = async () => {
+    const visibleSlides = slides.filter((s) => s.is_active);
+    for (const slide of visibleSlides) {
+      await handleToggleActive(slide.id, false);
     }
   };
 
@@ -273,11 +338,14 @@ const AdminPitchDeckPage = () => {
     <div className="min-h-screen bg-[#020202] text-[#f6e1bd]">
       <AdminNav adminLabel={adminLabel || undefined} />
 
+      {/* Hidden canvas for PDF rendering */}
+      <canvas ref={canvasRef} style={{ display: "none" }} />
+
       <div className="mx-auto max-w-7xl px-4 py-8">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold">Pitch Deck Management</h1>
           <p className="text-sm text-[#a3a3a3]">
-            Upload PDFs to extract slides or manage existing slides
+            Upload PDFs to extract slides, then show/hide individual slides
           </p>
         </div>
 
@@ -289,11 +357,11 @@ const AdminPitchDeckPage = () => {
               <div>
                 <label className="block">
                   <span className="text-xs text-[#a3a3a3] mb-2 block">
-                    Upload PDF or Video (Max 50MB)
+                    Upload PDF (Max 50MB)
                   </span>
                   <input
                     type="file"
-                    accept=".pdf,.mp4,.webm,.mov"
+                    accept=".pdf"
                     onChange={handleFileUpload}
                     disabled={uploading}
                     className="block w-full text-sm text-[#f6e1bd] file:mr-4 file:rounded-lg file:border-0 file:bg-[#cb6b1e] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-black hover:file:bg-[#e37a2e] disabled:opacity-50"
@@ -301,36 +369,72 @@ const AdminPitchDeckPage = () => {
                 </label>
               </div>
               {uploading && (
-                <p className="text-sm text-[#cb6b1e]">Uploading and processing...</p>
+                <div className="space-y-2">
+                  <p className="text-sm text-[#cb6b1e]">
+                    Processing slide {uploadProgress.current} of{" "}
+                    {uploadProgress.total}...
+                  </p>
+                  <div className="h-2 rounded-full bg-[#1a1a1a] overflow-hidden">
+                    <div
+                      className="h-full bg-[#cb6b1e] transition-all duration-300"
+                      style={{
+                        width: `${
+                          uploadProgress.total > 0
+                            ? (uploadProgress.current / uploadProgress.total) *
+                              100
+                            : 0
+                        }%`,
+                      }}
+                    />
+                  </div>
+                </div>
               )}
               <p className="text-xs text-[#737373]">
-                PDFs will be automatically split into individual slide images. Existing slides will be replaced.
+                PDFs are processed in your browser and split into individual
+                slides. Existing slides will be replaced.
               </p>
             </div>
           </div>
 
-          {/* Slide Size Selector */}
-          <div className="rounded-2xl border border-[#1f1f1f] bg-[#0b0b0b] p-6">
-            <h2 className="text-lg font-semibold mb-4">Display Settings</h2>
-            <div>
-              <label className="block">
-                <span className="text-xs text-[#a3a3a3] mb-2 block">Slide Size</span>
-                <div className="flex gap-3">
-                  {(["small", "medium", "large"] as SlideSize[]).map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => handleSizeChange(size)}
-                      className={`rounded-lg px-6 py-2 text-sm font-semibold transition-colors ${
-                        slideSize === size
-                          ? "bg-[#cb6b1e] text-black"
-                          : "bg-[#1a1a1a] text-[#f6e1bd] hover:bg-[#262626]"
-                      }`}
-                    >
-                      {size.charAt(0).toUpperCase() + size.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </label>
+          {/* Display Settings & Bulk Actions */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="rounded-2xl border border-[#1f1f1f] bg-[#0b0b0b] p-6">
+              <h2 className="text-lg font-semibold mb-4">Display Size</h2>
+              <div className="flex gap-3">
+                {(["small", "medium", "large"] as SlideSize[]).map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => handleSizeChange(size)}
+                    className={`rounded-lg px-6 py-2 text-sm font-semibold transition-colors ${
+                      slideSize === size
+                        ? "bg-[#cb6b1e] text-black"
+                        : "bg-[#1a1a1a] text-[#f6e1bd] hover:bg-[#262626]"
+                    }`}
+                  >
+                    {size.charAt(0).toUpperCase() + size.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-[#1f1f1f] bg-[#0b0b0b] p-6">
+              <h2 className="text-lg font-semibold mb-4">Bulk Actions</h2>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleShowAll}
+                  disabled={slides.every((s) => s.is_active)}
+                  className="rounded-lg bg-green-900/30 px-4 py-2 text-sm text-green-400 hover:bg-green-900/50 disabled:opacity-50 transition-colors"
+                >
+                  Show All
+                </button>
+                <button
+                  onClick={handleHideAll}
+                  disabled={slides.every((s) => !s.is_active)}
+                  className="rounded-lg bg-red-900/30 px-4 py-2 text-sm text-red-400 hover:bg-red-900/50 disabled:opacity-50 transition-colors"
+                >
+                  Hide All
+                </button>
+              </div>
             </div>
           </div>
 
@@ -338,11 +442,11 @@ const AdminPitchDeckPage = () => {
           <div className="rounded-2xl border border-[#1f1f1f] bg-[#0b0b0b] p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">
-                Slides ({activeSlideCount}/{slides.length} active)
+                Slides ({activeSlideCount}/{slides.length} visible)
               </h2>
               {slides.length > 0 && (
                 <p className="text-xs text-[#737373]">
-                  Drag to reorder
+                  Drag to reorder • Click Hide/Show to toggle visibility
                 </p>
               )}
             </div>
@@ -354,7 +458,7 @@ const AdminPitchDeckPage = () => {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {slides.map((slide) => (
                   <div
                     key={slide.id}
@@ -362,33 +466,43 @@ const AdminPitchDeckPage = () => {
                     onDragStart={() => handleDragStart(slide.id)}
                     onDragOver={handleDragOver}
                     onDrop={() => handleDrop(slide.id)}
-                    className={`rounded-xl border border-[#262626] bg-[#050505] p-4 cursor-move transition-all ${
-                      draggedSlideId === slide.id ? "opacity-50 scale-95" : "hover:border-[#cb6b1e]"
-                    } ${slide.is_active ? "" : "opacity-60"}`}
+                    className={`rounded-xl border p-3 cursor-move transition-all ${
+                      draggedSlideId === slide.id
+                        ? "opacity-50 scale-95 border-[#cb6b1e]"
+                        : slide.is_active
+                          ? "border-[#262626] bg-[#050505] hover:border-[#cb6b1e]"
+                          : "border-red-900/30 bg-red-950/10 opacity-60"
+                    }`}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-semibold text-[#cb6b1e]">
-                          Slide {slide.display_order}
+                          #{slide.display_order}
                         </span>
                         {!slide.is_active && (
-                          <span className="rounded-full bg-[#1f1f1f] px-2 py-0.5 text-[10px] uppercase tracking-wide text-[#a3a3a3]">
+                          <span className="rounded-full bg-red-900/30 px-2 py-0.5 text-[10px] text-red-400">
                             Hidden
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         <button
-                          onClick={() => handleToggleActive(slide.id, !slide.is_active)}
-                          className="rounded-md bg-[#1a1a1a] px-2 py-1 text-xs text-[#f6e1bd] hover:bg-[#262626] transition-colors"
+                          onClick={() =>
+                            handleToggleActive(slide.id, !slide.is_active)
+                          }
+                          className={`rounded px-2 py-1 text-xs transition-colors ${
+                            slide.is_active
+                              ? "bg-[#1a1a1a] text-[#f6e1bd] hover:bg-red-900/30 hover:text-red-400"
+                              : "bg-green-900/30 text-green-400 hover:bg-green-900/50"
+                          }`}
                         >
                           {slide.is_active ? "Hide" : "Show"}
                         </button>
                         <button
                           onClick={() => handleDeleteSlide(slide.id)}
-                          className="rounded-md bg-red-900/30 px-2 py-1 text-xs text-red-400 hover:bg-red-900/50 transition-colors"
+                          className="rounded px-2 py-1 text-xs text-[#737373] hover:bg-red-900/30 hover:text-red-400 transition-colors"
                         >
-                          Delete
+                          ×
                         </button>
                       </div>
                     </div>
