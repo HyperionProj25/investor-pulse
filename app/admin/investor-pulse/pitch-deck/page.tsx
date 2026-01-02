@@ -1,14 +1,10 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import AdminNav from "@/components/AdminNav";
 import { ADMIN_PERSONAS, ADMIN_SLUGS } from "@/lib/adminUsers";
-import * as pdfjsLib from "pdfjs-dist";
-
-// Set worker path for pdf.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 type Slide = {
   id: string;
@@ -31,8 +27,7 @@ const AdminPitchDeckPage = () => {
   const [slides, setSlides] = useState<Slide[]>([]);
   const [slideSize, setSlideSize] = useState<SlideSize>("medium");
   const [draggedSlideId, setDraggedSlideId] = useState<string | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
+  
   const activeSlideCount = useMemo(
     () => slides.filter((slide) => slide.is_active).length,
     [slides]
@@ -88,41 +83,6 @@ const AdminPitchDeckPage = () => {
     if (authorizedAdmin) void fetchSlides();
   }, [authorizedAdmin, fetchSlides]);
 
-  // Convert PDF page to PNG blob
-  const renderPageToBlob = async (
-    pdf: pdfjsLib.PDFDocumentProxy,
-    pageNum: number
-  ): Promise<Blob> => {
-    const page = await pdf.getPage(pageNum);
-    const scale = 2.0; // 2x for better quality
-    const viewport = page.getViewport({ scale });
-
-    // Create off-screen canvas
-    const canvas = document.createElement("canvas");
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("Failed to get canvas context");
-
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-
-    await page.render({
-      canvasContext: context,
-      viewport: viewport,
-      canvas: canvas as any,
-    }).promise;
-
-    return new Promise((resolve, reject) => {
-      canvas.toBlob(
-        (blob) => {
-          if (blob) resolve(blob);
-          else reject(new Error("Failed to convert canvas to blob"));
-        },
-        "image/png",
-        0.95
-      );
-    });
-  };
-
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -140,6 +100,44 @@ const AdminPitchDeckPage = () => {
     setUploadProgress({ current: 0, total: 0 });
 
     try {
+      // Dynamically import pdfjs-dist (client-side only)
+      const pdfjsLib = await import("pdfjs-dist");
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+
+      // Helper to convert PDF page to PNG blob
+      const renderPageToBlob = async (
+        pdf: import("pdfjs-dist").PDFDocumentProxy,
+        pageNum: number
+      ): Promise<Blob> => {
+        const page = await pdf.getPage(pageNum);
+        const scale = 2.0;
+        const viewport = page.getViewport({ scale });
+
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("Failed to get canvas context");
+
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render({
+          canvasContext: context,
+          viewport: viewport,
+          canvas: canvas as any,
+        }).promise;
+
+        return new Promise((resolve, reject) => {
+          canvas.toBlob(
+            (blob) => {
+              if (blob) resolve(blob);
+              else reject(new Error("Failed to convert canvas to blob"));
+            },
+            "image/png",
+            0.95
+          );
+        });
+      };
+
       // Load PDF in browser
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -337,9 +335,6 @@ const AdminPitchDeckPage = () => {
   return (
     <div className="min-h-screen bg-[#020202] text-[#f6e1bd]">
       <AdminNav adminLabel={adminLabel || undefined} />
-
-      {/* Hidden canvas for PDF rendering */}
-      <canvas ref={canvasRef} style={{ display: "none" }} />
 
       <div className="mx-auto max-w-7xl px-4 py-8">
         <div className="mb-6">
