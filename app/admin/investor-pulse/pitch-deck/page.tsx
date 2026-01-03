@@ -422,21 +422,21 @@ const AdminPitchDeckPage = () => {
             </div>
 
             <div className="rounded-2xl border border-[#1f1f1f] bg-[#0b0b0b] p-6">
-              <h2 className="text-lg font-semibold mb-4">Bulk Actions</h2>
+              <h2 className="text-lg font-semibold mb-4">Selection</h2>
               <div className="flex gap-3">
                 <button
                   onClick={handleShowAll}
                   disabled={slides.every((s) => s.is_active)}
-                  className="rounded-lg bg-green-900/30 px-4 py-2 text-sm text-green-400 hover:bg-green-900/50 disabled:opacity-50 transition-colors"
+                  className="rounded-lg bg-[#1a1a1a] px-4 py-2 text-sm text-[#f6e1bd] hover:bg-[#262626] disabled:opacity-50 transition-colors"
                 >
-                  Show All
+                  Select All
                 </button>
                 <button
                   onClick={handleHideAll}
                   disabled={slides.every((s) => !s.is_active)}
-                  className="rounded-lg bg-red-900/30 px-4 py-2 text-sm text-red-400 hover:bg-red-900/50 disabled:opacity-50 transition-colors"
+                  className="rounded-lg bg-[#1a1a1a] px-4 py-2 text-sm text-[#f6e1bd] hover:bg-[#262626] disabled:opacity-50 transition-colors"
                 >
-                  Hide All
+                  Deselect All
                 </button>
               </div>
             </div>
@@ -446,11 +446,11 @@ const AdminPitchDeckPage = () => {
           <div className="rounded-2xl border border-[#1f1f1f] bg-[#0b0b0b] p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">
-                Slides ({activeSlideCount}/{slides.length} visible)
+                Slides ({activeSlideCount}/{slides.length} selected)
               </h2>
               {slides.length > 0 && (
                 <p className="text-xs text-[#737373]">
-                  Drag to reorder • Click Hide/Show to toggle visibility
+                  Drag to reorder • Check slides to include in presentation
                 </p>
               )}
             </div>
@@ -479,36 +479,25 @@ const AdminPitchDeckPage = () => {
                     }`}
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={slide.is_active}
+                          onChange={() =>
+                            handleToggleActive(slide.id, !slide.is_active)
+                          }
+                          className="w-4 h-4 rounded border-[#3a3a3a] bg-[#1a1a1a] text-[#cb6b1e] focus:ring-[#cb6b1e] focus:ring-offset-0 cursor-pointer"
+                        />
                         <span className="text-xs font-semibold text-[#cb6b1e]">
                           #{slide.display_order}
                         </span>
-                        {!slide.is_active && (
-                          <span className="rounded-full bg-red-900/30 px-2 py-0.5 text-[10px] text-red-400">
-                            Hidden
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() =>
-                            handleToggleActive(slide.id, !slide.is_active)
-                          }
-                          className={`rounded px-2 py-1 text-xs transition-colors ${
-                            slide.is_active
-                              ? "bg-[#1a1a1a] text-[#f6e1bd] hover:bg-red-900/30 hover:text-red-400"
-                              : "bg-green-900/30 text-green-400 hover:bg-green-900/50"
-                          }`}
-                        >
-                          {slide.is_active ? "Hide" : "Show"}
-                        </button>
-                        <button
-                          onClick={() => handleDeleteSlide(slide.id)}
-                          className="rounded px-2 py-1 text-xs text-[#737373] hover:bg-red-900/30 hover:text-red-400 transition-colors"
-                        >
-                          ×
-                        </button>
-                      </div>
+                      </label>
+                      <button
+                        onClick={() => handleDeleteSlide(slide.id)}
+                        className="rounded px-2 py-1 text-xs text-[#737373] hover:bg-red-900/30 hover:text-red-400 transition-colors"
+                      >
+                        ×
+                      </button>
                     </div>
                     <div className="aspect-video w-full rounded-lg overflow-hidden bg-[#0a0a0a]">
                       <img
