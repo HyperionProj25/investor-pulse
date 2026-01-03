@@ -6,6 +6,14 @@ import { toast } from "react-hot-toast";
 import AdminNav from "@/components/AdminNav";
 import { ADMIN_PERSONAS, ADMIN_SLUGS } from "@/lib/adminUsers";
 
+// Load PDF processing only on client-side
+const loadPdfJs = async () => {
+  if (typeof window === "undefined") return null;
+  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  return pdfjsLib;
+};
+
 type Slide = {
   id: string;
   slide_number: number;
@@ -100,15 +108,16 @@ const AdminPitchDeckPage = () => {
     setUploadProgress({ current: 0, total: 0 });
 
     try {
-      // Dynamically import pdfjs-dist (client-side only)
-      const pdfjsLib = await import("pdfjs-dist");
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+      // Load pdfjs-dist (client-side only)
+      const pdfjsLib = await loadPdfJs();
+      if (!pdfjsLib) {
+        toast.error("PDF processing not available");
+        return;
+      }
 
       // Helper to convert PDF page to PNG blob
-      const renderPageToBlob = async (
-        pdf: import("pdfjs-dist").PDFDocumentProxy,
-        pageNum: number
-      ): Promise<Blob> => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const renderPageToBlob = async (pdf: any, pageNum: number): Promise<Blob> => {
         const page = await pdf.getPage(pageNum);
         const scale = 2.0;
         const viewport = page.getViewport({ scale });
