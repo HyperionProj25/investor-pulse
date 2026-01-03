@@ -757,21 +757,6 @@ useEffect(() => {
           </div>
         </section>
 
-        {/* Partner Showcase - Split Flap Display */}
-        {partnerShowcase && partnerShowcase.partners.length > 0 && (
-          <section className="w-full">
-            <div className="relative bg-[#141414] border border-[#262626] rounded-2xl p-6 text-center">
-              <p className="text-sm uppercase tracking-[0.3em] text-[#a3a3a3] mb-4">
-                {partnerShowcase.title || "Who We've Worked With"}
-              </p>
-              <SplitFlapDisplay
-                text={partnerShowcase.partners[currentPartnerIndex]?.name ?? ""}
-                highlighted={partnerShowcase.partners[currentPartnerIndex]?.highlighted ?? false}
-              />
-            </div>
-          </section>
-        )}
-
         {/* Funding Progress Bar - Full Width, FLASHY */}
         <section className="w-full">
           {siteLoading ? (
@@ -783,13 +768,12 @@ useEffect(() => {
                   <h3 className="text-sm uppercase tracking-wider text-[#a3a3a3] mb-1">
                     Funding Progress
                   </h3>
-                  <p className="text-2xl font-bold">
-                    <span className="text-[#cb6b1e]">{committedDisplay}</span>
-                    <span className="text-[#737373]"> / {targetDisplay}</span>
+                  <p className="text-sm text-[#737373]">
+                    {funding.roundType}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-4xl font-bold text-[#cb6b1e]">
+                  <p className="text-5xl font-bold text-[#cb6b1e]">
                     {fundingProgressRounded}%
                   </p>
                   <p className="text-xs text-[#a3a3a3]">of target reached</p>
@@ -908,6 +892,22 @@ useEffect(() => {
             </div>
           )}
         </section>
+
+        {/* Partner Showcase - Split Flap Display */}
+        {partnerShowcase && partnerShowcase.partners.length > 0 && (
+          <section className="w-full">
+            <div className="relative bg-[#141414] border border-[#262626] rounded-2xl p-6 text-center">
+              <p className="text-sm uppercase tracking-[0.3em] text-[#a3a3a3] mb-4">
+                {partnerShowcase.title || "Who We've Worked With"}
+              </p>
+              <SplitFlapDisplay
+                text={partnerShowcase.partners[currentPartnerIndex]?.name ?? ""}
+                highlighted={partnerShowcase.partners[currentPartnerIndex]?.highlighted ?? false}
+              />
+            </div>
+          </section>
+        )}
+
         <footer className="pt-4 pb-10 text-[11px] text-[#d4d4d4] flex flex-col md:flex-row md:items-center md:justify-between gap-2 border-t border-[#262626]">
           <span>Baseline / Investor Pulse</span>
           <span>Built for private investor updates, not public marketing.</span>
