@@ -81,6 +81,17 @@ export type EcosystemStats = {
   reportsSubtext: string;
 };
 
+export type Partner = {
+  id: string;
+  name: string;
+  highlighted: boolean;
+};
+
+export type PartnerShowcase = {
+  title: string;
+  partners: Partner[];
+};
+
 export type QuestionnaireAnswers = {
   hero: HeroCopy;
   metadata: CountdownMetadata;
@@ -91,6 +102,7 @@ export type QuestionnaireAnswers = {
   updatePrompts: QuestionnairePrompt[];
   mvpSnapshot: MvpSnapshot;
   ecosystemStats?: EcosystemStats;
+  partnerShowcase?: PartnerShowcase;
 };
 
 const formatDisplayDate = (value: string) => {
@@ -317,6 +329,18 @@ export const BASELINE_UPDATE: QuestionnaireAnswers = {
   ],
   updatePrompts: QUESTIONNAIRE_PROMPTS,
   mvpSnapshot: DEFAULT_MVP_SNAPSHOT,
+  partnerShowcase: {
+    title: "Who We've Worked With",
+    partners: [
+      { id: "partner-1", name: "West Valley", highlighted: false },
+      { id: "partner-2", name: "College of San Mateo", highlighted: false },
+      { id: "partner-3", name: "Kinetic Performance Institute", highlighted: false },
+      { id: "partner-4", name: "The WildCatters", highlighted: false },
+      { id: "partner-5", name: "California Club Baseball", highlighted: false },
+      { id: "partner-6", name: "Alpha Baseball", highlighted: false },
+      { id: "partner-7", name: "GameChanger", highlighted: true },
+    ],
+  },
 };
 
 export const buildContentFromQuestionnaire = (answers: QuestionnaireAnswers) => {
@@ -338,6 +362,7 @@ export const buildContentFromQuestionnaire = (answers: QuestionnaireAnswers) => 
     questionnaire: answers.updatePrompts,
     mvpSnapshot: answers.mvpSnapshot ?? DEFAULT_MVP_SNAPSHOT,
     ecosystemStats: answers.ecosystemStats,
+    partnerShowcase: answers.partnerShowcase,
   };
 };
 

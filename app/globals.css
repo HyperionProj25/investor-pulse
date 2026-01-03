@@ -122,3 +122,44 @@ body {
 .animate-shimmer {
   animation: shimmer 3s infinite;
 }
+
+/* Split-Flap Display Animation */
+@keyframes splitFlapFlip {
+  0% {
+    transform: rotateX(0deg);
+  }
+  50% {
+    transform: rotateX(-90deg);
+  }
+  51% {
+    transform: rotateX(90deg);
+  }
+  100% {
+    transform: rotateX(0deg);
+  }
+}
+
+.split-flap-char {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1em;
+  height: 1.5em;
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
+  border-radius: 2px;
+  margin: 0 1px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-weight: 500;
+  perspective: 100px;
+  transform-style: preserve-3d;
+}
+
+.split-flap-char.flipping {
+  animation: splitFlapFlip 0.15s ease-in-out;
+}
+
+.split-flap-char.space {
+  background: transparent;
+  border-color: transparent;
+}

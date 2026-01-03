@@ -7,6 +7,12 @@ import AdminNav from "@/components/AdminNav";
 import { ADMIN_PERSONAS, ADMIN_SLUGS } from "@/lib/adminUsers";
 import { DATABASE_ERRORS } from "@/lib/errorMessages";
 
+type Partner = {
+  id: string;
+  name: string;
+  highlighted: boolean;
+};
+
 type FormData = {
   hero: {
     kicker: string;
@@ -52,6 +58,10 @@ type FormData = {
       description: string;
       statusLabel: string;
     };
+  };
+  partnerShowcase: {
+    title: string;
+    partners: Partner[];
   };
 };
 
@@ -107,6 +117,10 @@ const AdminUpdateSitePage = () => {
         description: "",
         statusLabel: "",
       },
+    },
+    partnerShowcase: {
+      title: "Who We've Worked With",
+      partners: [],
     },
   });
 
@@ -201,6 +215,10 @@ const AdminUpdateSitePage = () => {
                 statusLabel: p.mvpSnapshot?.next?.statusLabel || "",
               },
             },
+            partnerShowcase: {
+              title: p.partnerShowcase?.title || "Who We've Worked With",
+              partners: p.partnerShowcase?.partners || [],
+            },
           });
         }
       } catch (err) {
@@ -261,6 +279,7 @@ const AdminUpdateSitePage = () => {
           reportsSubtext: form.ecosystemStats.reportsSubtext,
         },
         mvpSnapshot: form.mvpSnapshot,
+        partnerShowcase: form.partnerShowcase,
       };
 
       const response = await fetch("/api/admin/update", {
@@ -689,6 +708,92 @@ const AdminUpdateSitePage = () => {
                     />
                   </label>
                 </div>
+              </div>
+            </div>
+
+            {/* Partner Showcase */}
+            <div className="rounded-2xl border border-[#1f1f1f] bg-[#0b0b0b] p-6 space-y-4">
+              <div>
+                <h2 className="text-lg font-semibold">Partner Showcase</h2>
+                <p className="text-xs text-[#737373]">Scrolling list of partners displayed below the countdown</p>
+              </div>
+
+              <label className="block">
+                <span className="text-xs text-[#a3a3a3]">Section Title</span>
+                <input
+                  className={inputClass}
+                  value={form.partnerShowcase.title}
+                  onChange={(e) => setForm(prev => ({ ...prev, partnerShowcase: { ...prev.partnerShowcase, title: e.target.value } }))}
+                  placeholder="e.g., Who We've Worked With"
+                />
+              </label>
+
+              <div className="border-t border-[#262626] pt-4">
+                <h3 className="text-sm font-semibold text-[#cb6b1e] mb-3">Partners</h3>
+                <div className="space-y-3">
+                  {form.partnerShowcase.partners.map((partner, idx) => (
+                    <div key={partner.id} className="flex gap-3 items-start border border-[#262626] rounded-lg p-4">
+                      <div className="flex-1 space-y-3">
+                        <label className="block">
+                          <span className="text-xs text-[#a3a3a3]">Partner Name</span>
+                          <input
+                            className={inputClass}
+                            value={partner.name}
+                            onChange={(e) => {
+                              const updated = [...form.partnerShowcase.partners];
+                              updated[idx] = { ...updated[idx], name: e.target.value };
+                              setForm(prev => ({ ...prev, partnerShowcase: { ...prev.partnerShowcase, partners: updated } }));
+                            }}
+                            placeholder="Enter partner name"
+                          />
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-[#2a2a2a] bg-[#090909] text-[#cb6b1e]"
+                            checked={partner.highlighted}
+                            onChange={(e) => {
+                              const updated = [...form.partnerShowcase.partners];
+                              updated[idx] = { ...updated[idx], highlighted: e.target.checked };
+                              setForm(prev => ({ ...prev, partnerShowcase: { ...prev.partnerShowcase, partners: updated } }));
+                            }}
+                          />
+                          <span className="text-xs text-[#a3a3a3]">Highlight in orange</span>
+                        </label>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const updated = form.partnerShowcase.partners.filter((_, i) => i !== idx);
+                          setForm(prev => ({ ...prev, partnerShowcase: { ...prev.partnerShowcase, partners: updated } }));
+                        }}
+                        className="rounded-lg border border-red-500/30 px-3 py-1 text-xs text-red-400 hover:bg-red-500/10"
+                        disabled={saving}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => {
+                    const newPartner: Partner = {
+                      id: `partner-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                      name: "",
+                      highlighted: false,
+                    };
+                    setForm(prev => ({
+                      ...prev,
+                      partnerShowcase: {
+                        ...prev.partnerShowcase,
+                        partners: [...prev.partnerShowcase.partners, newPartner],
+                      },
+                    }));
+                  }}
+                  className="mt-4 rounded-lg border border-[#cb6b1e] px-4 py-2 text-sm text-[#cb6b1e] hover:bg-[#cb6b1e]/10"
+                >
+                  + Add Partner
+                </button>
               </div>
             </div>
           </div>

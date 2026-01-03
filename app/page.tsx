@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import BaselineLogo from "../components/BaselineLogo";
 import AccessPortal from "../components/AccessPortal";
+import SplitFlapDisplay from "../components/SplitFlapDisplay";
 import BrainTrustAgreement from "../components/BrainTrustAgreement";
 import DickheadCounter from "../components/DickheadCounter";
 import {
@@ -175,7 +176,10 @@ function HomeContent() {
   const [hasAgreed, setHasAgreed] = useState<boolean | null>(null); // null = checking, true/false = known
   const [checkingAgreement, setCheckingAgreement] = useState(true);
 
-  const { hero, metadata, funding, snapshots, investors, mvpSnapshot } = content;
+  // Partner Showcase state
+  const [currentPartnerIndex, setCurrentPartnerIndex] = useState(0);
+
+  const { hero, metadata, funding, snapshots, investors, mvpSnapshot, partnerShowcase } = content;
   const lastUpdated = metadata.lastUpdatedDisplay;
   const heroHeadingSegments = [
     { text: hero.h1Lead, accent: false },
@@ -411,6 +415,18 @@ useEffect(() => {
     const frame = requestAnimationFrame(() => setProgressAnimated(true));
     return () => cancelAnimationFrame(frame);
   }, [siteLoading, funding.committed, funding.target]);
+
+  // Partner showcase cycling effect (3 second intervals)
+  useEffect(() => {
+    const partners = partnerShowcase?.partners ?? [];
+    if (partners.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setCurrentPartnerIndex((prev) => (prev + 1) % partners.length);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [partnerShowcase?.partners]);
 
   const fundingSummary = [
     { label: "Round type", value: funding.roundType },
@@ -740,6 +756,21 @@ useEffect(() => {
             </div>
           </div>
         </section>
+
+        {/* Partner Showcase - Split Flap Display */}
+        {partnerShowcase && partnerShowcase.partners.length > 0 && (
+          <section className="w-full">
+            <div className="relative bg-[#141414] border border-[#262626] rounded-2xl p-6 text-center">
+              <p className="text-sm uppercase tracking-[0.3em] text-[#a3a3a3] mb-4">
+                {partnerShowcase.title || "Who We've Worked With"}
+              </p>
+              <SplitFlapDisplay
+                text={partnerShowcase.partners[currentPartnerIndex]?.name ?? ""}
+                highlighted={partnerShowcase.partners[currentPartnerIndex]?.highlighted ?? false}
+              />
+            </div>
+          </section>
+        )}
 
         {/* Funding Progress Bar - Full Width, FLASHY */}
         <section className="w-full">
