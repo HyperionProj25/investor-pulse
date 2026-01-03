@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { FILE_UPLOAD_ERRORS, VALIDATION_ERRORS, AUTH_ERRORS } from "@/lib/errorMessages";
+import { FILE_UPLOAD_ERRORS, AUTH_ERRORS } from "@/lib/errorMessages";
 import { SESSION_COOKIE, verifySessionToken } from "@/lib/session";
 import { ADMIN_SLUGS } from "@/lib/adminUsers";
 import { cookies } from "next/headers";
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
-import { Canvas, createCanvas } from "canvas";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseServiceRoleKey) {
-  throw new Error(VALIDATION_ERRORS.SUPABASE_SERVICE_CONFIG_MISSING);
+  throw new Error("Supabase configuration missing");
 }
 
 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
@@ -34,12 +32,9 @@ const ALLOWED_EXTENSIONS = new Set(["pdf", "mp4", "webm", "mov", "avi"]);
 
 const ensureBucketExists = async () => {
   const { data, error } = await supabase.storage.getBucket(BUCKET_NAME);
-  if (data) {
-    return;
-  }
-  if (error && !/not found/i.test(error.message ?? "")) {
-    throw error;
-  }
+  if (data) return;
+  if (error && !/not found/i.test(error.message ?? "")) throw error;
+
   const { error: createError } = await supabase.storage.createBucket(
     BUCKET_NAME,
     {
@@ -48,58 +43,16 @@ const ensureBucketExists = async () => {
       allowedMimeTypes: Array.from(ALLOWED_MIME_TYPES),
     }
   );
-  if (
-    createError &&
-    !/already exists/i.test(createError.message ?? "creation failed")
-  ) {
+  if (createError && !/already exists/i.test(createError.message ?? "")) {
     throw createError;
   }
 };
 
 const isAllowedType = (file: File) => {
   const mime = (file.type || "").toLowerCase();
-  if (mime && ALLOWED_MIME_TYPES.has(mime)) {
-    return true;
-  }
+  if (mime && ALLOWED_MIME_TYPES.has(mime)) return true;
   const extension = file.name.split(".").pop()?.toLowerCase();
   return extension ? ALLOWED_EXTENSIONS.has(extension) : false;
-};
-
-// Helper function to extract slides from PDF
-const extractPDFSlides = async (pdfBuffer: Buffer) => {
-  try {
-    // Load PDF document
-    const loadingTask = pdfjsLib.getDocument({ data: pdfBuffer });
-    const pdfDoc = await loadingTask.promise;
-    const numPages = pdfDoc.numPages;
-    const slides: Buffer[] = [];
-
-    // Extract each page as an image
-    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-      const page = await pdfDoc.getPage(pageNum);
-      const viewport = page.getViewport({ scale: 2.0 }); // 2x scale for better quality
-
-      // Create canvas
-      const canvas = createCanvas(viewport.width, viewport.height);
-      const context = canvas.getContext("2d");
-
-      // Render PDF page to canvas
-      await page.render({
-        canvasContext: context as any,
-        viewport: viewport,
-        canvas: canvas as any,
-      }).promise;
-
-      // Convert canvas to PNG buffer
-      const imageBuffer = canvas.toBuffer("image/png");
-      slides.push(imageBuffer);
-    }
-
-    return slides;
-  } catch (error) {
-    console.error("PDF extraction failed:", error);
-    throw new Error("Failed to extract slides from PDF");
-  }
 };
 
 export async function POST(request: NextRequest) {
@@ -117,15 +70,7 @@ export async function POST(request: NextRequest) {
 
     const session = verifySessionToken(sessionCookie);
 
-    if (!session) {
-      return NextResponse.json(
-        { error: AUTH_ERRORS.SESSION_INVALID },
-        { status: 401 }
-      );
-    }
-
-    // Only admins can upload files
-    if (session.role !== "admin" || !ADMIN_SLUGS.includes(session.slug)) {
+    if (!session || session.role !== "admin" || !ADMIN_SLUGS.includes(session.slug)) {
       return NextResponse.json(
         { error: AUTH_ERRORS.ADMIN_ACCESS_REQUIRED },
         { status: 403 }
@@ -158,9 +103,7 @@ export async function POST(request: NextRequest) {
 
     if (!isAllowedType(file)) {
       return NextResponse.json(
-        {
-          error: FILE_UPLOAD_ERRORS.TYPE_UNSUPPORTED,
-        },
+        { error: FILE_UPLOAD_ERRORS.TYPE_UNSUPPORTED },
         { status: 400 }
       );
     }
@@ -172,7 +115,7 @@ export async function POST(request: NextRequest) {
       .toLowerCase();
     const objectName = `${Date.now()}-${Math.random()
       .toString(36)
-      .slice(2, 10)}-${sanitizedBaseName}`;
+      .slice(2, 8)}-${sanitizedBaseName}`;
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -197,75 +140,13 @@ export async function POST(request: NextRequest) {
       .getPublicUrl(objectName);
 
     if (!publicUrlData?.publicUrl) {
-      console.error("Public URL generation failed: No URL returned");
       return NextResponse.json(
         { error: FILE_UPLOAD_ERRORS.PUBLIC_URL_FAILED },
         { status: 500 }
       );
     }
 
-    // If it's a PDF, extract slides and store them
     const isPDF = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-    let slidesExtracted = 0;
-
-    if (isPDF) {
-      try {
-        // Extract slides from PDF
-        const slides = await extractPDFSlides(buffer);
-
-        // Delete existing slides
-        await supabase.from("pitch_deck_slides").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-
-        // Upload each slide and save metadata
-        for (let i = 0; i < slides.length; i++) {
-          const slideBuffer = slides[i];
-          const slideObjectName = `slides/slide-${i + 1}-${Date.now()}.png`;
-
-          // Upload slide image
-          const { error: slideUploadError } = await supabase.storage
-            .from(BUCKET_NAME)
-            .upload(slideObjectName, slideBuffer, {
-              contentType: "image/png",
-              upsert: false,
-            });
-
-          if (slideUploadError) {
-            console.error(`Failed to upload slide ${i + 1}:`, slideUploadError);
-            continue;
-          }
-
-          // Get public URL for slide
-          const { data: slideUrlData } = supabase.storage
-            .from(BUCKET_NAME)
-            .getPublicUrl(slideObjectName);
-
-          if (!slideUrlData?.publicUrl) {
-            console.error(`Failed to get public URL for slide ${i + 1}`);
-            continue;
-          }
-
-          // Save slide metadata to database
-          const { error: dbError } = await supabase
-            .from("pitch_deck_slides")
-            .insert({
-              slide_number: i + 1,
-              display_order: i + 1,
-              image_url: slideUrlData.publicUrl,
-              storage_path: slideObjectName,
-              is_active: true,
-            });
-
-          if (dbError) {
-            console.error(`Failed to save slide ${i + 1} metadata:`, dbError);
-          } else {
-            slidesExtracted++;
-          }
-        }
-      } catch (extractError) {
-        console.error("Slide extraction failed:", extractError);
-        // Don't fail the whole upload, just log the error
-      }
-    }
 
     return NextResponse.json({
       fileName: objectName,
@@ -274,7 +155,8 @@ export async function POST(request: NextRequest) {
       contentType: file.type,
       size: file.size,
       isPDF,
-      slidesExtracted,
+      // Note: PDF slide extraction is done client-side via /admin/investor-pulse/pitch-deck
+      slidesExtracted: 0,
     });
   } catch (error) {
     console.error("Pitch deck file upload error:", error);
