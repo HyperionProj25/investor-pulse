@@ -12,6 +12,9 @@ const mapPhaseRecord = (raw: Phase): Phase => ({
   label: raw.label,
   timing: raw.timing,
   focus: raw.focus,
+  startDate: raw.startDate ?? "",
+  endDate: raw.endDate ?? "",
+  // Keep legacy fields for backward compatibility
   startPercent: raw.startPercent,
   widthPercent: raw.widthPercent,
   color: raw.color,

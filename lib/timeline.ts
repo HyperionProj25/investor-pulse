@@ -7,12 +7,16 @@ export type Phase = {
   id: string;
   type: PhaseType;
   label: string;              // e.g., "Phase 1 – Planning"
-  timing: string;             // e.g., "Dec 2025"
+  timing: string;             // e.g., "Dec 2025" - auto-generated from dates
   focus: string;              // Description of phase goals
 
-  // Gantt bar positioning (as percentages 0-100)
-  startPercent: number;       // Where the bar starts
-  widthPercent: number;       // How wide the bar is
+  // Phase date range (ISO format YYYY-MM-DD)
+  startDate: string;          // When the phase starts
+  endDate: string;            // When the phase ends
+
+  // Legacy fields (kept for backwards compatibility, computed at render time)
+  startPercent?: number;
+  widthPercent?: number;
 
   // Visual styling
   color: string;              // Solid color hex
@@ -56,8 +60,8 @@ export const createDefaultTimeline = (): TimelineData => ({
       label: 'Phase 1 – Planning',
       timing: 'Dec 2025',
       focus: 'MVP scope, data models, and facility onboarding architecture.',
-      startPercent: 3,
-      widthPercent: 20,
+      startDate: '2025-12-01',
+      endDate: '2025-12-31',
       color: '#6b7280',
       colorGradient: 'linear-gradient(90deg, #6b7280, #9ca3af)'
     },
@@ -67,8 +71,8 @@ export const createDefaultTimeline = (): TimelineData => ({
       label: 'Phase 2 – Build',
       timing: 'Jan – Feb 2026',
       focus: 'Facility OS foundations, ingestion pipeline, investor hub v1.',
-      startPercent: 18,
-      widthPercent: 35,
+      startDate: '2026-01-01',
+      endDate: '2026-02-28',
       color: '#4f9edb',
       colorGradient: 'linear-gradient(90deg, #4f9edb, #7cc0ff)'
     },
@@ -78,8 +82,8 @@ export const createDefaultTimeline = (): TimelineData => ({
       label: 'Phase 3 – Validation',
       timing: 'Mar 2026',
       focus: 'Closed pilots, QA, data quality sweeps, investor preview.',
-      startPercent: 48,
-      widthPercent: 20,
+      startDate: '2026-03-01',
+      endDate: '2026-03-31',
       color: '#eab308',
       colorGradient: 'linear-gradient(90deg, #facc15, #fde047)'
     },
@@ -87,10 +91,10 @@ export const createDefaultTimeline = (): TimelineData => ({
       id: 'phase-launch',
       type: 'launch',
       label: 'Phase 4 – Launch',
-      timing: 'May 2026',
+      timing: 'Apr – May 2026',
       focus: 'MVP release, enablement, and investor launch cadence.',
-      startPercent: 61,
-      widthPercent: 15,
+      startDate: '2026-04-15',
+      endDate: '2026-05-15',
       color: '#f26c1a',
       colorGradient: 'linear-gradient(90deg, #f26c1a, #faae6b)'
     },
@@ -98,10 +102,10 @@ export const createDefaultTimeline = (): TimelineData => ({
       id: 'phase-post',
       type: 'post',
       label: 'Phase 5 – Post-Launch & Phase 2 Prep',
-      timing: 'Late May – Jun 2026',
+      timing: 'May – Jun 2026',
       focus: 'Metrics review, second facility cohort, Phase 2 scope.',
-      startPercent: 72,
-      widthPercent: 15,
+      startDate: '2026-05-16',
+      endDate: '2026-06-30',
       color: '#22c55e',
       colorGradient: 'linear-gradient(90deg, #22c55e, #4ade80)'
     }
@@ -131,19 +135,92 @@ export const createDefaultTimeline = (): TimelineData => ({
 });
 
 /**
+ * Normalize a date string to UTC midnight timestamp
+ * This avoids timezone issues when comparing dates
+ */
+export const normalizeToUTC = (dateStr: string): number => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return Date.UTC(year, month - 1, day);
+};
+
+/**
+ * Calculate the percentage position for a date within a timeline range
+ * Returns a percentage (0-100)
+ */
+export const calculateDatePercent = (
+  date: string,
+  timelineStart: string,
+  timelineEnd: string
+): number => {
+  const start = normalizeToUTC(timelineStart);
+  const end = normalizeToUTC(timelineEnd);
+  const target = normalizeToUTC(date);
+
+  const total = end - start;
+  if (total <= 0) return 0;
+
+  const elapsed = target - start;
+  const percent = (elapsed / total) * 100;
+
+  return Math.min(Math.max(percent, 0), 100);
+};
+
+/**
+ * Calculate start and width percentages for a phase based on its dates
+ */
+export const calculatePhasePosition = (
+  phase: Phase,
+  timelineStart: string,
+  timelineEnd: string
+): { startPercent: number; widthPercent: number } => {
+  const startPercent = calculateDatePercent(phase.startDate, timelineStart, timelineEnd);
+  const endPercent = calculateDatePercent(phase.endDate, timelineStart, timelineEnd);
+  const widthPercent = Math.max(endPercent - startPercent, 1); // Minimum 1% width
+
+  return { startPercent, widthPercent };
+};
+
+/**
  * Calculate the position of the "today line" on the Gantt chart
  * Returns a percentage (0-100) representing where today falls on the timeline
+ * Uses UTC normalization to avoid timezone issues
  */
 export const calculateTodayLinePosition = (startDate: string, endDate: string): number => {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  const start = normalizeToUTC(startDate);
+  const end = normalizeToUTC(endDate);
+
+  // Get today's date at UTC midnight for consistent comparison
   const now = new Date();
+  const todayUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
 
-  const totalDuration = end.getTime() - start.getTime();
-  const elapsed = now.getTime() - start.getTime();
+  const totalDuration = end - start;
+  if (totalDuration <= 0) return 0;
 
+  const elapsed = todayUTC - start;
   const percent = (elapsed / totalDuration) * 100;
+
   return Math.min(Math.max(percent, 0), 100);
+};
+
+/**
+ * Generate timing text from phase dates (e.g., "Jan - Feb 2026")
+ */
+export const generateTimingFromDates = (startDate: string, endDate: string): string => {
+  const start = new Date(startDate + 'T00:00:00');
+  const end = new Date(endDate + 'T00:00:00');
+
+  const startMonth = start.toLocaleDateString('en-US', { month: 'short' });
+  const endMonth = end.toLocaleDateString('en-US', { month: 'short' });
+  const startYear = start.getFullYear();
+  const endYear = end.getFullYear();
+
+  if (startMonth === endMonth && startYear === endYear) {
+    return `${startMonth} ${startYear}`;
+  } else if (startYear === endYear) {
+    return `${startMonth} – ${endMonth} ${endYear}`;
+  } else {
+    return `${startMonth} ${startYear} – ${endMonth} ${endYear}`;
+  }
 };
 
 /**
@@ -162,26 +239,41 @@ export const formatMilestoneDate = (isoDate: string): string => {
  * Validate a single phase
  * Returns array of error messages (empty if valid)
  */
-export const validatePhase = (phase: Phase): string[] => {
+export const validatePhase = (phase: Phase, timelineStart?: string, timelineEnd?: string): string[] => {
   const errors: string[] = [];
 
   if (!phase.label?.trim()) {
     errors.push('Phase label is required');
   }
-  if (!phase.timing?.trim()) {
-    errors.push('Phase timing is required');
-  }
   if (!phase.focus?.trim()) {
     errors.push('Phase focus is required');
   }
-  if (phase.startPercent < 0 || phase.startPercent > 100) {
-    errors.push('Start position must be between 0-100%');
+  if (!phase.startDate) {
+    errors.push('Phase start date is required');
   }
-  if (phase.widthPercent <= 0 || phase.widthPercent > 100) {
-    errors.push('Width must be between 1-100%');
+  if (!phase.endDate) {
+    errors.push('Phase end date is required');
   }
-  if (phase.startPercent + phase.widthPercent > 100) {
-    errors.push('Phase extends beyond 100% of timeline');
+
+  // Validate date order
+  if (phase.startDate && phase.endDate) {
+    const start = normalizeToUTC(phase.startDate);
+    const end = normalizeToUTC(phase.endDate);
+    if (end < start) {
+      errors.push('End date must be after start date');
+    }
+
+    // Validate within timeline bounds if provided
+    if (timelineStart && timelineEnd) {
+      const tlStart = normalizeToUTC(timelineStart);
+      const tlEnd = normalizeToUTC(timelineEnd);
+      if (start < tlStart) {
+        errors.push('Phase starts before timeline');
+      }
+      if (end > tlEnd) {
+        errors.push('Phase ends after timeline');
+      }
+    }
   }
 
   return errors;
@@ -237,7 +329,7 @@ export const validateTimeline = (timeline: TimelineData): Record<string, string[
 
   // Validate phases
   timeline.phases.forEach((phase, idx) => {
-    const phaseErrors = validatePhase(phase);
+    const phaseErrors = validatePhase(phase, timeline.timelineStart, timeline.timelineEnd);
     if (phaseErrors.length > 0) {
       errors[`phase-${idx}`] = phaseErrors;
     }

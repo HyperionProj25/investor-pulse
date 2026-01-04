@@ -5,6 +5,7 @@ import { useMemo, useState, useEffect } from "react";
 import BaselineLogo from "./BaselineLogo";
 import {
   calculateTodayLinePosition,
+  calculatePhasePosition,
   formatMilestoneDate,
   type Phase,
   type TimelineData,
@@ -210,8 +211,14 @@ const TimelineBoard = ({
           </div>
           <div className="space-y-3">
             {timeline.phases.map((phase) => {
-              const start = clampPercent(phase.startPercent);
-              const width = clampPercent(phase.widthPercent);
+              // Calculate position from dates if available, fall back to legacy percentages
+              const hasDateFields = phase.startDate && phase.endDate;
+              const { startPercent: calcStart, widthPercent: calcWidth } = hasDateFields
+                ? calculatePhasePosition(phase, timeline.timelineStart, timeline.timelineEnd)
+                : { startPercent: phase.startPercent ?? 0, widthPercent: phase.widthPercent ?? 20 };
+
+              const start = clampPercent(calcStart);
+              const width = clampPercent(calcWidth);
               const resolvedWidth =
                 start + width > 100 ? 100 - start : width;
               return (

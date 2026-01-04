@@ -9,6 +9,7 @@ import { ADMIN_PERSONAS, ADMIN_SLUGS } from "@/lib/adminUsers";
 import {
   createDefaultTimeline,
   generateId,
+  generateTimingFromDates,
   hasValidationErrors,
   validateTimeline,
   type PhaseType,
@@ -136,6 +137,12 @@ const AdminTimelinePage = () => {
   };
 
   const addPhase = () => {
+    // Default to a 2-week phase starting from timeline start
+    const defaultStart = timeline.timelineStart;
+    const startDate = new Date(defaultStart);
+    startDate.setDate(startDate.getDate() + 14);
+    const defaultEnd = startDate.toISOString().split('T')[0];
+
     setTimeline((prev) => ({
       ...prev,
       phases: [
@@ -144,10 +151,10 @@ const AdminTimelinePage = () => {
           id: generateId("phase"),
           type: "planning",
           label: "New phase",
-          timing: "TBD",
+          timing: generateTimingFromDates(defaultStart, defaultEnd),
           focus: "Describe the focus for this phase.",
-          startPercent: 0,
-          widthPercent: 20,
+          startDate: defaultStart,
+          endDate: defaultEnd,
           color: "#6b7280",
           colorGradient: "",
         },
@@ -530,29 +537,35 @@ const AdminTimelinePage = () => {
                       </select>
                     </label>
                     <label className="text-xs uppercase tracking-[0.2em] text-[#a3a3a3]">
-                      Start %
+                      Start Date
                       <input
-                        type="number"
-                        min={0}
-                        max={100}
+                        type="date"
                         className={`${fieldClasses} mt-1`}
-                        value={phase.startPercent}
-                        onChange={(event) =>
-                          updatePhase(phase.id, "startPercent", event.target.value)
-                        }
+                        value={phase.startDate ?? ""}
+                        onChange={(event) => {
+                          updatePhase(phase.id, "startDate", event.target.value);
+                          // Auto-update timing when dates change
+                          if (phase.endDate) {
+                            const newTiming = generateTimingFromDates(event.target.value, phase.endDate);
+                            updatePhase(phase.id, "timing", newTiming);
+                          }
+                        }}
                       />
                     </label>
                     <label className="text-xs uppercase tracking-[0.2em] text-[#a3a3a3]">
-                      Width %
+                      End Date
                       <input
-                        type="number"
-                        min={0}
-                        max={100}
+                        type="date"
                         className={`${fieldClasses} mt-1`}
-                        value={phase.widthPercent}
-                        onChange={(event) =>
-                          updatePhase(phase.id, "widthPercent", event.target.value)
-                        }
+                        value={phase.endDate ?? ""}
+                        onChange={(event) => {
+                          updatePhase(phase.id, "endDate", event.target.value);
+                          // Auto-update timing when dates change
+                          if (phase.startDate) {
+                            const newTiming = generateTimingFromDates(phase.startDate, event.target.value);
+                            updatePhase(phase.id, "timing", newTiming);
+                          }
+                        }}
                       />
                     </label>
                   </div>
