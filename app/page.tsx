@@ -908,19 +908,8 @@ useEffect(() => {
           </section>
         )}
 
-        <footer className="pt-4 pb-10 text-[11px] text-[#d4d4d4] flex flex-col md:flex-row md:items-center md:justify-between gap-2 border-t border-[#262626]">
-          <span>Baseline / Investor Pulse</span>
+        <footer className="pt-4 pb-10 text-[11px] text-[#737373] text-center border-t border-[#262626]">
           <span>Built for private investor updates, not public marketing.</span>
-          <span>
-            Accessibility: We are committed to WCAG 2.1 AA compliance. Contact{" "}
-            <a
-              href="mailto:accessibility@baseline.com"
-              className="underline text-[#f6e1bd]"
-            >
-              accessibility@baseline.com
-            </a>{" "}
-            with any issues.
-          </span>
         </footer>
       </main>
 
