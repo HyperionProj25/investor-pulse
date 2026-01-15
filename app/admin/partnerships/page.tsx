@@ -7,6 +7,7 @@ import PartnershipsNav from "@/components/PartnershipsNav";
 import PartnerModal from "@/components/admin/partnerships/PartnerModal";
 import ConnectionsModal from "@/components/admin/partnerships/ConnectionsModal";
 import NetworkView from "@/components/admin/partnerships/NetworkView";
+import MapView from "@/components/admin/partnerships/MapView";
 import { ADMIN_PERSONAS, ADMIN_SLUGS } from "@/lib/adminUsers";
 import type {
   Partner,
@@ -25,7 +26,7 @@ import {
 import { formatNumber } from "@/lib/partnershipsValidation";
 import { getUserFriendlyError } from "@/lib/errorMessages";
 
-type ViewMode = "list" | "network";
+type ViewMode = "list" | "network" | "map";
 
 const PartnershipsPage = () => {
   const router = useRouter();
@@ -310,10 +311,20 @@ const PartnershipsPage = () => {
             >
               Network View
             </button>
+            <button
+              onClick={() => setViewMode("map")}
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                viewMode === "map"
+                  ? "bg-[#cb6b1e] text-black"
+                  : "border border-[#2a2a2a] text-[#f6e1bd] hover:border-[#cb6b1e]"
+              }`}
+            >
+              Map View
+            </button>
           </div>
         </div>
 
-        {viewMode === "list" ? (
+        {viewMode === "list" && (
           <>
             {/* Filters Row */}
             <div className="mb-6 flex flex-wrap items-center gap-4">
@@ -555,8 +566,9 @@ const PartnershipsPage = () => {
               </div>
             </div>
           </>
-        ) : (
-          /* Network View */
+        )}
+
+        {viewMode === "network" && (
           <NetworkView
             partners={filteredPartners}
             connections={connections}
@@ -564,6 +576,18 @@ const PartnershipsPage = () => {
             onPartnerClick={handleEditPartner}
             onAddPartner={handleAddPartner}
             onPositionUpdate={handlePositionUpdate}
+            typeFilter={typeFilter}
+            statusFilter={statusFilter}
+            onTypeFilterChange={setTypeFilter}
+            onStatusFilterChange={setStatusFilter}
+          />
+        )}
+
+        {viewMode === "map" && (
+          <MapView
+            partners={filteredPartners}
+            connections={connections}
+            onPartnerClick={handleEditPartner}
             typeFilter={typeFilter}
             statusFilter={statusFilter}
             onTypeFilterChange={setTypeFilter}
