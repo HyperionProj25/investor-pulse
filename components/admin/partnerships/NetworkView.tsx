@@ -17,18 +17,15 @@ import {
   CONNECTION_TYPE_LABELS,
 } from "@/lib/partnerships";
 
-// Dynamically import ForceGraph2D to avoid SSR issues
-const ForceGraph2D = dynamic(
-  () => import("react-force-graph").then((mod) => mod.ForceGraph2D),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="w-full h-[70vh] min-h-[600px] rounded-xl border border-[#1f1f1f] bg-[#050505] flex items-center justify-center">
-        <div className="text-[#737373] animate-pulse">Loading Neural Network...</div>
-      </div>
-    ),
-  }
-);
+// Dynamically import ForceGraph2D (standalone 2D-only package, no A-Frame/VR deps)
+const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[70vh] min-h-[600px] rounded-xl border border-[#1f1f1f] bg-[#050505] flex items-center justify-center">
+      <div className="text-[#737373] animate-pulse">Loading Neural Network...</div>
+    </div>
+  ),
+});
 
 type NetworkViewProps = {
   partners: Partner[];
