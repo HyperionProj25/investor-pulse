@@ -75,7 +75,7 @@ export default function AdminHubPage() {
           <p className="text-[#a3a3a3]">Choose where you want to go</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Investor Pulse Card */}
           <Link
             href="/admin/investor-pulse"
@@ -164,6 +164,49 @@ export default function AdminHubPage() {
               </span>
               <span className="rounded-full bg-[#1a1a1a] px-3 py-1 text-xs text-[#737373]">
                 System Map
+              </span>
+            </div>
+          </Link>
+
+          {/* Partnerships Card */}
+          <Link
+            href="/admin/partnerships"
+            className="group relative rounded-2xl border border-[#262626] bg-[#0a0a0a] p-8 transition-all hover:border-[#cb6b1e]/50 hover:bg-[#0f0f0f]"
+          >
+            <div className="absolute top-4 right-4 text-[#cb6b1e] opacity-0 group-hover:opacity-100 transition-opacity">
+              →
+            </div>
+            <div className="mb-4">
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[#cb6b1e]/10 text-[#cb6b1e]">
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                  />
+                </svg>
+              </div>
+            </div>
+            <h2 className="text-xl font-semibold mb-2">Partnerships</h2>
+            <p className="text-sm text-[#a3a3a3] mb-4">
+              Manage ecosystem partners, tech partners, and key people. Visualize
+              your partner network.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-full bg-[#1a1a1a] px-3 py-1 text-xs text-[#737373]">
+                Partners
+              </span>
+              <span className="rounded-full bg-[#1a1a1a] px-3 py-1 text-xs text-[#737373]">
+                Connections
+              </span>
+              <span className="rounded-full bg-[#1a1a1a] px-3 py-1 text-xs text-[#737373]">
+                Network View
               </span>
             </div>
           </Link>

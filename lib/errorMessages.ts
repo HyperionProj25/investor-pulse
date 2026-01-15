@@ -4,6 +4,8 @@ export const DATABASE_ERRORS = {
   ADMIN_PUBLISH_FAILED: "We couldn't publish your updates right now. Review the fields and try again.",
   PITCH_DECK_SAVE_FAILED: "We couldn't save the pitch deck changes right now. Try again shortly.",
   QUESTIONNAIRE_UPDATE_FAILED: "We couldn't update the questionnaire data just now. Try again shortly.",
+  PARTNERSHIPS_FETCH_FAILED: "We couldn't load the partnerships data. Refresh and try again.",
+  PARTNERSHIPS_SAVE_FAILED: "We couldn't save the partnership changes. Try again shortly.",
   GENERIC: "We ran into a database issue. Try again shortly.",
 } as const;
 
