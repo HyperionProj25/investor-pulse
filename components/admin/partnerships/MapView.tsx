@@ -242,52 +242,16 @@ function MapLegend() {
   );
 }
 
-// Filter controls component
-function FilterControls({
-  typeFilter,
-  statusFilter,
-  onTypeFilterChange,
-  onStatusFilterChange,
+// Map options panel (just growth potential toggle now - filters moved to page level)
+function MapOptions({
   showGrowthPotential,
   onGrowthPotentialChange,
 }: {
-  typeFilter: PartnerType | "all";
-  statusFilter: PartnerStatus | "all";
-  onTypeFilterChange: (type: PartnerType | "all") => void;
-  onStatusFilterChange: (status: PartnerStatus | "all") => void;
   showGrowthPotential: boolean;
   onGrowthPotentialChange: (show: boolean) => void;
 }) {
   return (
     <div className="absolute top-4 left-[220px] z-[1000] flex items-center gap-2">
-      <select
-        className="rounded-lg border border-[#2a2a2a] bg-[#0b0b0b]/95 backdrop-blur-sm px-3 py-2 text-xs text-[#f6e1bd] focus:border-[#cb6b1e] focus:outline-none"
-        value={typeFilter}
-        onChange={(e) =>
-          onTypeFilterChange(e.target.value as PartnerType | "all")
-        }
-      >
-        <option value="all">All Types</option>
-        <option value="ecosystem">Ecosystem</option>
-        <option value="tech">Tech</option>
-        <option value="person">Person</option>
-      </select>
-
-      <select
-        className="rounded-lg border border-[#2a2a2a] bg-[#0b0b0b]/95 backdrop-blur-sm px-3 py-2 text-xs text-[#f6e1bd] focus:border-[#cb6b1e] focus:outline-none"
-        value={statusFilter}
-        onChange={(e) =>
-          onStatusFilterChange(e.target.value as PartnerStatus | "all")
-        }
-      >
-        <option value="all">All Statuses</option>
-        <option value="target">Target</option>
-        <option value="contacted">Contacted</option>
-        <option value="in_progress">In Progress</option>
-        <option value="secured">Secured</option>
-        <option value="inactive">Inactive</option>
-      </select>
-
       <button
         onClick={() => onGrowthPotentialChange(!showGrowthPotential)}
         className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
@@ -604,11 +568,7 @@ export default function MapView({
 
       {/* Controls and panels */}
       <MapLegend />
-      <FilterControls
-        typeFilter={typeFilter}
-        statusFilter={statusFilter}
-        onTypeFilterChange={onTypeFilterChange}
-        onStatusFilterChange={onStatusFilterChange}
+      <MapOptions
         showGrowthPotential={showGrowthPotential}
         onGrowthPotentialChange={setShowGrowthPotential}
       />

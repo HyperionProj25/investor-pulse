@@ -562,46 +562,8 @@ const NetworkView = ({
           </div>
         )}
 
-        <div className="border-t border-[#1f1f1f] pt-3">
-          {/* Type Filter */}
-          <div className="mb-3">
-            <label className="text-xs text-[#737373] block mb-1">Type</label>
-            <select
-              className="w-full rounded-lg border border-[#2a2a2a] bg-[#090909] px-2 py-1 text-xs text-[#f6e1bd] focus:border-[#F28C28] focus:outline-none"
-              value={typeFilter}
-              onChange={(e) =>
-                onTypeFilterChange(e.target.value as PartnerType | "all")
-              }
-            >
-              <option value="all">All Types</option>
-              <option value="ecosystem">Ecosystem</option>
-              <option value="tech">Tech</option>
-              <option value="person">Person</option>
-            </select>
-          </div>
-
-          {/* Status Filter */}
-          <div>
-            <label className="text-xs text-[#737373] block mb-1">Status</label>
-            <select
-              className="w-full rounded-lg border border-[#2a2a2a] bg-[#090909] px-2 py-1 text-xs text-[#f6e1bd] focus:border-[#F28C28] focus:outline-none"
-              value={statusFilter}
-              onChange={(e) =>
-                onStatusFilterChange(e.target.value as PartnerStatus | "all")
-              }
-            >
-              <option value="all">All Statuses</option>
-              <option value="target">Target</option>
-              <option value="contacted">Contacted</option>
-              <option value="in_progress">In Progress</option>
-              <option value="secured">Secured</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-        </div>
-
         {/* Action Buttons */}
-        <div className="space-y-2 pt-2 border-t border-[#1f1f1f]">
+        <div className="space-y-2 pt-3 border-t border-[#1f1f1f]">
           <button
             onClick={runAutoLayout}
             className="w-full rounded-lg border border-[#2a2a2a] px-3 py-1.5 text-xs hover:border-[#F28C28] hover:text-[#F28C28] transition-colors"

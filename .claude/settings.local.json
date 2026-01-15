@@ -12,7 +12,8 @@
       "Bash(npm ls:*)",
       "Bash(powershell -Command:*)",
       "Bash(netstat:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(npm uninstall:*)"
     ]
   }
 }

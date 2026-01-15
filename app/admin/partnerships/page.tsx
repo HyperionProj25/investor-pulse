@@ -163,6 +163,16 @@ const PartnershipsPage = () => {
     return result;
   }, [partners, typeFilter, statusFilter, searchQuery, sortField, sortDirection]);
 
+  // Filter connections to only show connections between visible partners
+  const filteredConnections = useMemo(() => {
+    const visiblePartnerIds = new Set(filteredPartners.map((p) => p.id));
+    return connections.filter(
+      (c) =>
+        visiblePartnerIds.has(c.from_partner_id) &&
+        visiblePartnerIds.has(c.to_partner_id)
+    );
+  }, [connections, filteredPartners]);
+
   // Partner operations
   const handleAddPartner = () => {
     setEditingPartner(null);
@@ -324,56 +334,105 @@ const PartnershipsPage = () => {
           </div>
         </div>
 
+        {/* Unified Filter Bar - Always Visible */}
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          {/* Type Filter Buttons */}
+          <div className="flex items-center gap-1 rounded-lg border border-[#2a2a2a] bg-[#090909] p-1">
+            <button
+              onClick={() => setTypeFilter("all")}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                typeFilter === "all"
+                  ? "bg-[#2a2a2a] text-[#f6e1bd]"
+                  : "text-[#737373] hover:text-[#f6e1bd]"
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setTypeFilter("ecosystem")}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                typeFilter === "ecosystem"
+                  ? "bg-[#3b82f6]/20 text-[#3b82f6]"
+                  : "text-[#737373] hover:text-[#3b82f6]"
+              }`}
+            >
+              <span className="h-2 w-2 rounded-full bg-[#3b82f6]" />
+              Ecosystem
+            </button>
+            <button
+              onClick={() => setTypeFilter("tech")}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                typeFilter === "tech"
+                  ? "bg-[#22c55e]/20 text-[#22c55e]"
+                  : "text-[#737373] hover:text-[#22c55e]"
+              }`}
+            >
+              <span className="h-2 w-2 rounded-full bg-[#22c55e]" />
+              Tech
+            </button>
+            <button
+              onClick={() => setTypeFilter("person")}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                typeFilter === "person"
+                  ? "bg-[#F28C28]/20 text-[#F28C28]"
+                  : "text-[#737373] hover:text-[#F28C28]"
+              }`}
+            >
+              <span className="h-2 w-2 rounded-full bg-[#F28C28]" />
+              People
+            </button>
+          </div>
+
+          {/* Status Filter */}
+          <select
+            className="rounded-lg border border-[#2a2a2a] bg-[#090909] px-3 py-2 text-sm text-[#f6e1bd] focus:border-[#cb6b1e] focus:outline-none"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as PartnerStatus | "all")}
+          >
+            <option value="all">All Statuses</option>
+            <option value="target">Target</option>
+            <option value="contacted">Contacted</option>
+            <option value="in_progress">In Progress</option>
+            <option value="secured">Secured</option>
+            <option value="inactive">Inactive</option>
+          </select>
+
+          {/* Search */}
+          <input
+            type="text"
+            placeholder="Search..."
+            className="w-48 rounded-lg border border-[#2a2a2a] bg-[#090909] px-3 py-2 text-sm text-[#f6e1bd] placeholder-[#737373] focus:border-[#cb6b1e] focus:outline-none"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+
+          {/* Active filter indicator */}
+          {(typeFilter !== "all" || statusFilter !== "all" || searchQuery) && (
+            <button
+              onClick={() => {
+                setTypeFilter("all");
+                setStatusFilter("all");
+                setSearchQuery("");
+              }}
+              className="rounded-lg border border-[#cb6b1e]/30 bg-[#cb6b1e]/10 px-3 py-2 text-sm text-[#cb6b1e] hover:bg-[#cb6b1e]/20 transition-colors"
+            >
+              Clear filters ({filteredPartners.length}/{partners.length})
+            </button>
+          )}
+
+          <div className="flex-1" />
+
+          {/* Add Partner Button */}
+          <button
+            onClick={handleAddPartner}
+            className="rounded-lg bg-[#cb6b1e] px-4 py-2 text-sm font-semibold text-black hover:bg-[#e37a2e]"
+          >
+            + Add Partner
+          </button>
+        </div>
+
         {viewMode === "list" && (
           <>
-            {/* Filters Row */}
-            <div className="mb-6 flex flex-wrap items-center gap-4">
-              {/* Search */}
-              <input
-                type="text"
-                placeholder="Search partners..."
-                className="w-64 rounded-lg border border-[#2a2a2a] bg-[#090909] px-3 py-2 text-sm text-[#f6e1bd] placeholder-[#737373] focus:border-[#cb6b1e] focus:outline-none"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-
-              {/* Type Filter */}
-              <select
-                className="rounded-lg border border-[#2a2a2a] bg-[#090909] px-3 py-2 text-sm text-[#f6e1bd] focus:border-[#cb6b1e] focus:outline-none"
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value as PartnerType | "all")}
-              >
-                <option value="all">All Types</option>
-                <option value="ecosystem">Ecosystem</option>
-                <option value="tech">Tech</option>
-                <option value="person">Person</option>
-              </select>
-
-              {/* Status Filter */}
-              <select
-                className="rounded-lg border border-[#2a2a2a] bg-[#090909] px-3 py-2 text-sm text-[#f6e1bd] focus:border-[#cb6b1e] focus:outline-none"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as PartnerStatus | "all")}
-              >
-                <option value="all">All Statuses</option>
-                <option value="target">Target</option>
-                <option value="contacted">Contacted</option>
-                <option value="in_progress">In Progress</option>
-                <option value="secured">Secured</option>
-                <option value="inactive">Inactive</option>
-              </select>
-
-              <div className="flex-1" />
-
-              {/* Add Partner Button */}
-              <button
-                onClick={handleAddPartner}
-                className="rounded-lg bg-[#cb6b1e] px-4 py-2 text-sm font-semibold text-black hover:bg-[#e37a2e]"
-              >
-                + Add Partner
-              </button>
-            </div>
-
             {/* Summary Stats */}
             <div className="mb-6 grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="rounded-xl border border-[#1f1f1f] bg-[#0b0b0b] p-4">
@@ -571,7 +630,7 @@ const PartnershipsPage = () => {
         {viewMode === "network" && (
           <NetworkView
             partners={filteredPartners}
-            connections={connections}
+            connections={filteredConnections}
             positions={positions}
             onPartnerClick={handleEditPartner}
             onAddPartner={handleAddPartner}
@@ -586,7 +645,7 @@ const PartnershipsPage = () => {
         {viewMode === "map" && (
           <MapView
             partners={filteredPartners}
-            connections={connections}
+            connections={filteredConnections}
             onPartnerClick={handleEditPartner}
             typeFilter={typeFilter}
             statusFilter={statusFilter}
