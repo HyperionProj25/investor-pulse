@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "react-hot-toast";
 import PartnershipsNav from "@/components/PartnershipsNav";
 import PartnerModal from "@/components/admin/partnerships/PartnerModal";
@@ -331,6 +332,13 @@ const PartnershipsPage = () => {
             >
               Map View
             </button>
+            <div className="w-px h-6 bg-[#2a2a2a]" />
+            <Link
+              href="/admin/partnerships/year1-plan"
+              className="rounded-lg border border-purple-500/30 bg-purple-500/10 px-4 py-2 text-sm font-medium text-purple-300 hover:bg-purple-500/20 hover:border-purple-500/50 transition-colors"
+            >
+              Year 1 Plan
+            </Link>
           </div>
         </div>
 
